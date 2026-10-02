@@ -1,0 +1,6 @@
+{
+  "name": "Aether 3D Engine",
+  "description": "Studio de création de jeux 3D Web Zero-Code basé sur Three.js avec physique Rapier.js 3D, architecture ECS, contrôleur de personnage ZQSD/FPS, système de logique à 3 niveaux (Behavior Cards, Visual Node Graph, Scripts Monaco) et synthétiseur audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

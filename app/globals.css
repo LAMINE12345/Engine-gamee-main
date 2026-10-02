@@ -1,0 +1,312 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Aether 3D Engine — Design System
+   --------------------------------------------------------------------------
+   Les couleurs neutres restent sur l'échelle `zinc` de Tailwind (déjà
+   utilisée partout dans l'éditeur) : on ajoute ici les *rôles* (tokens
+   sémantiques) et les primitives de composants partagées par la Toolbar,
+   les panneaux, les menus et la palette de commandes.
+   ========================================================================== */
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* Rôles de surface */
+  --color-ae-bg: #07080c;
+  --color-ae-surface: #0d0f16;
+  --color-ae-raised: #14171f;
+  --color-ae-line: #232733;
+  --color-ae-line-soft: #1a1d26;
+
+  /* Rôles d'accent */
+  --color-ae-accent: #38bdf8;
+  --color-ae-success: #10b981;
+  --color-ae-warn: #f59e0b;
+  --color-ae-danger: #f43f5e;
+
+  /* Hauteur des deux barres de chrome (utilisées par le layout principal) */
+  --spacing-chrome: 3.25rem; /* 52px */
+  --spacing-chrome-compact: 1.75rem; /* 28px — mode Zen */
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-ae-bg);
+    color: var(--color-zinc-100);
+    font-family: var(--font-sans);
+    /* Les chiffres de l'éditeur (coords, FPS, compteurs) restent alignés. */
+    font-feature-settings: 'cv05' 1, 'ss01' 1;
+    font-variant-numeric: tabular-nums;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  /* Les panneaux de l'éditeur défilent beaucoup : une barre discrète et
+     themed évite les scrollbars grises par défaut qui cassent le chrome. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3a4050 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #2b303d;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #454c5e;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-ae-accent) 35%, transparent);
+    color: #fff;
+  }
+
+  /* Anneau de focus visible uniquement au clavier (a11y clavier). */
+  :focus-visible {
+    outline: 2px solid var(--color-ae-accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Champs de saisie : le placeholder natif disparaît sur fond zinc. */
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-zinc-600);
+  }
+}
+
+@layer components {
+  /* ------------------------------------------------------------- surfaces */
+  .ae-panel {
+    background-color: color-mix(in oklab, var(--color-ae-surface) 94%, transparent);
+    border: 1px solid var(--color-ae-line);
+    backdrop-filter: blur(12px);
+  }
+
+  .ae-chrome {
+    background-color: color-mix(in oklab, var(--color-ae-surface) 96%, transparent);
+    border-color: var(--color-ae-line-soft);
+    backdrop-filter: blur(12px);
+  }
+
+  /* ---------------------------------------------------------------- menus */
+  .ae-menu {
+    @apply rounded-xl border border-zinc-700/70 bg-zinc-900/95 shadow-2xl backdrop-blur-xl;
+    box-shadow:
+      0 18px 48px -12px rgb(0 0 0 / 0.7),
+      0 0 0 1px rgb(255 255 255 / 0.03) inset;
+  }
+
+  .ae-menu-label {
+    @apply px-2.5 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
+  }
+
+  .ae-menu-item {
+    @apply flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs
+           text-zinc-300 transition-colors duration-100;
+  }
+
+  .ae-menu-item:hover,
+  .ae-menu-item[data-active='true'] {
+    @apply bg-sky-500/15 text-sky-100;
+  }
+
+  .ae-menu-item[data-active='true'] .ae-menu-icon {
+    @apply text-sky-300;
+  }
+
+  .ae-menu-icon {
+    @apply shrink-0 text-zinc-400 transition-colors duration-100;
+  }
+
+  .ae-menu-separator {
+    @apply my-1 h-px bg-zinc-800;
+  }
+
+  /* -------------------------------------------------------------- boutons */
+  .ae-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border
+           px-2.5 py-1.5 text-xs font-medium whitespace-nowrap
+           transition-[background-color,border-color,color,transform] duration-150
+           active:scale-[0.97];
+    border-color: var(--color-ae-line);
+    background-color: var(--color-ae-raised);
+    color: var(--color-zinc-300);
+  }
+
+  .ae-btn:hover {
+    @apply border-zinc-600 text-zinc-50;
+  }
+
+  .ae-btn[aria-pressed='true'],
+  .ae-btn[data-active='true'] {
+    @apply border-sky-500/50 bg-sky-500/15 text-sky-300;
+  }
+
+  .ae-btn-icon {
+    @apply h-7 w-7 p-0;
+  }
+
+  /* ---------------------------------------------------------- raccourcis */
+  .ae-kbd {
+    @apply inline-flex h-[18px] min-w-[18px] items-center justify-center rounded
+           border border-zinc-700/80 bg-zinc-800/80 px-1
+           font-mono text-[10px] leading-none text-zinc-400;
+  }
+
+  /* -------------------------------------------------------------- onglets */
+  .ae-tab {
+    @apply relative flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]
+           font-medium text-zinc-400 transition-colors duration-150
+           hover:bg-white/5 hover:text-zinc-100;
+  }
+
+  .ae-tab[data-active='true'] {
+    @apply bg-white/10 text-white shadow-sm;
+  }
+
+  /* ------------------------------------------------------------- divers */
+  .ae-field {
+    @apply w-full rounded-lg border border-zinc-800 bg-zinc-950/70 px-2 py-1.5
+           text-xs text-zinc-100 outline-none transition-colors
+           placeholder:text-zinc-600;
+  }
+
+  .ae-field:focus {
+    @apply border-sky-500/60;
+  }
+}
+
+/* ==========================================================================
+   Animations partagées (le reste de l'app référence `fadeIn`).
+   ========================================================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheen {
+  from {
+    background-position: -180% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
+}
+
+@layer utilities {
+  .ae-anim-fade-in {
+    animation: fadeIn 0.18s ease-out both;
+  }
+
+  .ae-anim-pop-in {
+    animation: popIn 0.14s ease-out both;
+  }
+
+  .ae-anim-slide-down {
+    animation: slideDown 0.16s ease-out both;
+  }
+
+  /* Chrome de l'éditeur : la barre active « respire » pour guider l'œil. */
+  .ae-sheen {
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      rgb(255 255 255 / 0.14) 50%,
+      transparent 80%
+    );
+    background-size: 180% 100%;
+    animation: sheen 2.4s ease-in-out infinite;
+  }
+}
+
+/* Respect des préférences système : on coupe les mouvements non essentiels
+   (l'éditeur 3D reste animé, c'est le chrome qui se fige). */
+@media (prefers-reduced-motion: reduce) {
+  .ae-anim-fade-in,
+  .ae-anim-pop-in,
+  .ae-anim-slide-down,
+  .ae-sheen {
+    animation: none !important;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

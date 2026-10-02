@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="aetherBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="0.55" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="aetherGlyph" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="15" fill="url(#aetherBg)"/>
+
+  <!-- Isocube filaire : la signature "3D engine" -->
+  <g fill="none" stroke="url(#aetherGlyph)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M32 13 51 24.5 32 36 13 24.5Z" opacity="0.95"/>
+    <path d="M13 24.5V43.5L32 55"/>
+    <path d="M51 24.5V43.5L32 55"/>
+  </g>
+
+  <!-- Noyau lumineux -->
+  <circle cx="32" cy="13" r="3.1" fill="#ffffff"/>
+  <circle cx="13" cy="24.5" r="2.2" fill="#e0f2fe"/>
+  <circle cx="51" cy="24.5" r="2.2" fill="#e0f2fe"/>
+</svg>
