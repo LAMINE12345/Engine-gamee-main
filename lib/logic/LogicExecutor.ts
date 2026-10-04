@@ -42,12 +42,10 @@ import {
   getSurface,
   resolveSurfaceProperties,
   impactStrength,
-  distanceAttenuation,
   SurfaceData,
 } from './surfaceLogic';
 import {
   computeTrail,
-  speedFov,
   TRAIL_PRESETS,
   TrailStyle,
 } from './cameraTrailing';
@@ -231,8 +229,6 @@ export class LogicExecutor {
   } | null = null;
   /** Position courante de la caméra trainée (mutée chaque frame). */
   private trailPosition: { x: number; y: number; z: number } | null = null;
-  /** Dernier retard calculé, exposé pour le feedback (FOV, secousse). */
-  private lastTrailLag = 0;
   private entityTimerAccumulators: Map<string, Record<string, number>> = new Map();
 
   // Named timers for scripts (Engine.setTimer)
@@ -670,7 +666,6 @@ export class LogicExecutor {
     if (!obj || !entity.active) {
       this.trail = null;
       this.trailPosition = null;
-      this.lastTrailLag = 0;
       return;
     }
 
@@ -704,7 +699,6 @@ export class LogicExecutor {
 
     this.trailPosition = result.position;
     trail.previousTarget = target;
-    this.lastTrailLag = result.lag;
 
     // FOV dynamique : la caméra s'ouvre avec la vitesse pour que le sujet reste
     // dans le cadre — sans ça, un véhicule rapide sort de l'écran.
@@ -956,7 +950,6 @@ export class LogicExecutor {
     this.groundedState.clear();
     this.trail = null;
     this.trailPosition = null;
-    this.lastTrailLag = 0;
     // Les dérogations du joueur (gravité lunaire, sol de glace) sont des effets
     // de jeu : elles doivent disparaître au Stop, sinon la session suivante
     // démarrerait avec un joueur lunaire sans que rien ne l'ait demandé.

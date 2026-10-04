@@ -292,7 +292,8 @@ export class CameraManager {
   public frameFollowTarget(): boolean {
     const target = this.followTarget;
     if (!target || !isFollowable(target)) return false;
-    const worldPos = getWorldPosition(target, _followPos);
+    // La position monde était lue ici puis jetée : `pivotOf` la recalcule dans
+    // le même temporaire, et le résultat n'était utilisé nulle part.
     target.getWorldQuaternion(_followQuat);
     _followEuler.setFromQuaternion(_followQuat, 'YXZ');
 

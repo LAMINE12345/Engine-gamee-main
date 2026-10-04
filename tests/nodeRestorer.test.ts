@@ -81,7 +81,7 @@ function makeHarness(opts: { library?: string[]; attachSucceeds?: boolean } = {}
       calls.push(`adoptImportId:${id ?? 'undefined'}`);
       obj.userData = { ...obj.userData, adoptedId: id };
     },
-    trackImportId: (item, obj) => {
+    trackImportId: (item) => {
       if (item.id) calls.push(`trackImportId:${item.id}`);
     },
     attachImportParent: () => {
@@ -258,7 +258,7 @@ describe('scene/nodeRestorer — restoreGroup', () => {
   });
 
   it('retourne null quand la factory ne produit pas d’objet enregistré', () => {
-    const { port, restorer } = makeHarness();
+    const { port } = makeHarness();
     (port as { addPrimitive: unknown }).addPrimitive = () => ({ id: 'fantome' });
 
     const out = new NodeRestorer(port).restoreGroup(baseNode({ type: 'group', subType: 'vehicle' }));

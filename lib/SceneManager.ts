@@ -24,13 +24,11 @@ import {
   TerrainConfig,
   TerrainBrushConfig,
   DEFAULT_TERRAIN_BRUSH,
-  
   HUDConfig,
   DEFAULT_HUD_CONFIG,
   WorkPlaneConfig,
   DEFAULT_WORK_PLANE_CONFIG,
   SnapSettings,
-  
   RagdollBoneConfig,
   ParticleEmitterData,
   FoliageType,
@@ -89,8 +87,6 @@ import {
   detectImportConflict,
   mergeScenes,
   backupCurrentScene,
-  
-  
 } from './serialize';
 import type { ImportPolicy, SceneConflict, BackupInfo } from './serialize';
 import { HistoryManager, type AutosaveInfo } from './core/HistoryManager';
@@ -104,7 +100,6 @@ import { AssetStore } from './assets/AssetStore';
 import { AssetDatabase } from './assets/AssetDatabase';
 import { LODManager } from './assets/LODManager';
 import { LivePreviewHost } from './live/host';
-import type {  } from './live/link';
 import { BroadcastLiveLink, WebRtcLiveLink } from './live/link';
 import { CollabManager } from './collab/manager';
 import { CollabSession } from './collab/session';

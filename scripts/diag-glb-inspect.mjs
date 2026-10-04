@@ -1,7 +1,14 @@
 // Inspecte la structure d'un GLB (sans décoder les images).
+// Usage : node scripts/diag-glb-inspect.mjs <chemin/vers/modele.glb>
 import { readFileSync } from 'node:fs';
 
-const file = process.argv[2] || 'C:/Users/Lamine/Desktop/charcter/player.glb';
+const file = process.argv[2];
+if (!file) {
+  // Un chemin par défaut figé sur la machine d'un développeur fait échouer le
+  // script chez tous les autres — et masque le vrai message d'erreur.
+  console.error('usage: node scripts/diag-glb-inspect.mjs <chemin/vers/modele.glb>');
+  process.exit(2);
+}
 const buf = readFileSync(file);
 const magic = buf.subarray(0, 4).toString('ascii');
 const version = buf.readUInt32LE(4);

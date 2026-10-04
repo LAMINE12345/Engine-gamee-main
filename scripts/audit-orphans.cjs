@@ -37,21 +37,14 @@ const CANDIDATE_DIRS = ['lib', 'components', 'hooks', 'types'];
 /**
  * Modules with zero inbound references that are intentionally kept.
  * Each entry carries a reason so nobody "cleans them up" blindly.
+ *
+ * La liste est VIDE : les trois entrées shadcn qu'elle contenait
+ * (`lib/GhostManager.ts`, `lib/utils.ts`, `hooks/use-mobile.ts`) pointaient
+ * vers des fichiers qui n'existent plus — le script les signalait lui-même
+ * comme « stale ». Une allowlist quiauthorize du code supprimé revient à
+ * n'avoir aucune allowlist : la prochaine suppression réelserait inaperçue.
  */
-const KNOWN_ORPHANS = new Map([
-  [
-    'lib/GhostManager.ts',
-    'Complete Time-Trial / Ghost-Racing implementation with no UI or gameplay wiring yet. Kept as ready-to-integrate work, not as dead code.',
-  ],
-  [
-    'lib/utils.ts',
-    "shadcn/ui `cn()` class-name helper. Part of the standard shadcn scaffold (clsx + tailwind-merge are installed deps) reserved for upcoming components/ui/* work.",
-  ],
-  [
-    'hooks/use-mobile.ts',
-    'shadcn/ui `useIsMobile()` responsive hook. Same scaffold as lib/utils.ts; kept for the planned mobile editor layout.',
-  ],
-]);
+const KNOWN_ORPHANS = new Map();
 
 function walk(dir, acc) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

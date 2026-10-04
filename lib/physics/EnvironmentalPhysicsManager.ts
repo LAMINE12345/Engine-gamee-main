@@ -90,7 +90,6 @@ export class EnvironmentalPhysicsManager {
    */
   private groundSampler: GroundHeightSampler | null = null;
   private readonly _impactPos = new THREE.Vector3();
-  private readonly _impactNormal = new THREE.Vector3();
   /** Compteur d'impacts de pluie consommés (cadence fractionnaire). */
   private rainImpactBudget = 0;
   /** Entités déjà vue immergées : sert à détecter l'entrée dans l'eau. */
@@ -677,7 +676,7 @@ export class EnvironmentalPhysicsManager {
         const groundY = sampler.heightAt(wx, wz);
         // Sous le plan d'eau, la pluie frappe la surface de l'eau : une onde
         // par goutte y serait noyée dans les vaguelettes, on l'ignore.
-        if (!this.isBelowWater(wx, groundY)) {
+        if (!this.isBelowWater(groundY)) {
           this._impactPos.set(wx, groundY + 0.015, wz);
           fx.rainSplash(this._impactPos, this.rainConfig.intensity);
           impactsLeft--;
@@ -942,8 +941,8 @@ export class EnvironmentalPhysicsManager {
     return this.groundSampler;
   }
 
-  /** @private Le point (x, y) est-il sous la surface de l'eau ? */
-  private isBelowWater(x: number, y: number): boolean {
+  /** La surface de l'eau est un plan : seule l'altitude `y` compte. */
+  private isBelowWater(y: number): boolean {
     const water = this.waterManager;
     if (!water || !water.config.enabled) return false;
     return y < water.config.waterLevel;

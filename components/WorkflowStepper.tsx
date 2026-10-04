@@ -49,12 +49,7 @@ const ACCENT_RING: Record<string, string> = {
   emerald: 'bg-emerald-500 text-white shadow-emerald-950/50 ring-emerald-400/40',
 };
 
-const ACCENT_TEXT: Record<string, string> = {
-  sky: 'text-sky-300',
-  violet: 'text-violet-300',
-  amber: 'text-amber-300',
-  emerald: 'text-emerald-300',
-};
+
 
 /**
  * Barre d'étapes « Canva / Roblox Studio » : le parcours débutant
@@ -72,7 +67,6 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
   onOpenHelp,
   onOpenCommandPalette,
 }) => {
-  const activeIndex = STEPS.findIndex((s) => s.id === mode);
   const progress = visited.size / STEPS.length;
 
   return (
