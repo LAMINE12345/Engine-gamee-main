@@ -151,6 +151,7 @@ import {
   ParticleEmitterData,
   RepeatData,
   RepeatInfo,
+  RiverConfigData,
 } from '../types/engine';
 
 export default function AetherStudioPage() {
@@ -891,7 +892,7 @@ export default function AetherStudioPage() {
     sceneManagerRef.current?.setSmoothShading(id, smooth);
   }, []);
 
-  const handleUpdateRiverConfig = useCallback((id: string, config: Partial<any>) => {
+  const handleUpdateRiverConfig = useCallback((id: string, config: Partial<RiverConfigData>) => {
     sceneManagerRef.current?.updateRiverConfig(id, config);
     // Refresh selectedNode to update Inspector UI immediately
     if (selectedNode && selectedNode.id === id) {
@@ -1826,8 +1827,7 @@ export default function AetherStudioPage() {
     handleUndo,
     handleRedo,
     handleUngroup,
-    historyUi.canUndo,
-    historyUi.canRedo,
+    handleResetDemoScene,
     isAssetManagerOpen,
     isHierarchyOpen,
     isPlaying,
@@ -1837,7 +1837,6 @@ export default function AetherStudioPage() {
     snapping,
     zenMode,
     historyUi,
-    autosaveUi,
   ]);
 
   return (

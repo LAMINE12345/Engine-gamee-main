@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Users, Copy, Check, Play, Eye, RotateCcw, LogOut, Wifi } from 'lucide-react';
 import type { PeerMeta } from '../lib/net/types';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 export interface NetStatsView {
   role: string;
@@ -106,6 +107,8 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, role]);
 
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const run = async (label: string, fn: () => Promise<void>): Promise<void> => {
@@ -129,7 +132,10 @@ export const MultiplayerModal: React.FC<MultiplayerModalProps> = ({
 
   return (
     // Docké à droite, sans voile ni flou : le viewport reste visible et cliquable.
-    <div className="fixed top-14 bottom-0 right-0 z-[90] flex p-3 pointer-events-none select-none">
+    <div
+      role="region"
+      aria-label="Multijoueur"
+      className="fixed top-14 bottom-0 right-0 z-[90] flex p-3 pointer-events-none select-none">
       <div className="pointer-events-auto w-[min(560px,94vw)] h-full overflow-y-auto rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl animate-in fade-in slide-in-from-right duration-200">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 sticky top-0 bg-zinc-950">
           <div className="flex items-center gap-2 font-semibold text-zinc-100 text-sm">

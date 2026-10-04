@@ -18,6 +18,7 @@ import {
   Package,
   Loader2,
 } from 'lucide-react';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -121,6 +122,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     };
   }, [isOpen, options, sceneData, retryToken]);
 
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const slug = (fallback: string) =>
@@ -200,7 +203,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Exporter le jeu"
+      className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
       <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="h-16 px-6 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/60 shrink-0">

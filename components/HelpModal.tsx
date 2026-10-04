@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Play,
 } from 'lucide-react';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 interface HelpModalProps {
   isOpen: boolean;
@@ -48,10 +49,16 @@ const STEPS: Array<{ title: string; body: string }> = [
 ];
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onReplayIntro }) => {
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Aide"
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 sticky top-0 bg-zinc-950 z-10">
           <div className="flex items-center gap-2 font-semibold text-zinc-100 text-sm">

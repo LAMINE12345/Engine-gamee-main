@@ -36,6 +36,7 @@ import {
   FoliageEditPatch,
   RepeatData,
   RepeatInfo,
+  RiverConfigData,
 } from '../types/engine';
 import { TextureGenerator } from './textureGenerator';
 import {
@@ -4611,7 +4612,7 @@ private bindEvents(): void {
     this.scheduleRepeatHistory();
   }
 
-  public updateRiverConfig(id: string, config: Partial<import('./water/RiverMesh').RiverConfig>): void {
+  public updateRiverConfig(id: string, config: Partial<RiverConfigData>): void {
     const obj = this.objects.get(id);
     if (!obj || obj.userData?.subType !== 'river') return;
 

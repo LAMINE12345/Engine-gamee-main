@@ -10,6 +10,7 @@ import type {
   RigAnimData,
   RepeatData,
   RepeatInfo,
+  RiverConfigData,
 } from '../../types/engine';
 import type { EntityLogicData, NodeGraphData } from '../../types/logic';
 
@@ -30,7 +31,7 @@ export interface NodeUpdaters {
   onUpdatePhysics?: (id: string, physics: Partial<PhysicsNodeData>) => void;
   onUpdateLogic?: (id: string, logic: Partial<EntityLogicData>) => void;
   onUpdateRigAnim?: (id: string, rig: Partial<RigAnimData>) => void;
-  onUpdateRiverConfig?: (id: string, config: Record<string, unknown>) => void;
+  onUpdateRiverConfig?: (id: string, config: Partial<RiverConfigData>) => void;
   onUpdateParticles?: (id: string, config: Partial<ParticleEmitterData>) => void;
   /** Recolore les zones d'un modèle préfabriqué (null = palette par défaut). */
   onUpdateLowPolyPalette?: (id: string, colors: string[] | null) => void;

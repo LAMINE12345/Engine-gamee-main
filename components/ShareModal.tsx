@@ -5,6 +5,7 @@ import {
   X, Link2, Copy, Check, Radio, Download, MonitorPlay, ExternalLink,
 } from 'lucide-react';
 import { formatShareBytes } from '../lib/share/shareUrl';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -41,6 +42,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const run = async (label: string, fn: () => Promise<void>): Promise<void> => {
@@ -67,7 +70,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   return (
     // Docké à droite, sans voile ni flou : le viewport reste visible et cliquable.
-    <div className="fixed top-14 bottom-0 right-0 z-[90] flex p-3 pointer-events-none select-none">
+    <div
+      role="region"
+      aria-label="Partager la scène"
+      className="fixed top-14 bottom-0 right-0 z-[90] flex p-3 pointer-events-none select-none">
       <div className="pointer-events-auto w-[min(560px,94vw)] h-full overflow-y-auto rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl animate-in fade-in slide-in-from-right duration-200">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 sticky top-0 bg-zinc-950">
           <div className="flex items-center gap-2 font-semibold text-zinc-100 text-sm">

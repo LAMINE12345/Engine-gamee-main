@@ -5,6 +5,7 @@ import { Activity, X, RotateCcw, Bug, AlertTriangle } from 'lucide-react';
 import type { ProfilerSnapshot } from '../types/debug';
 import { formatMs } from '../types/debug';
 import { formatBytes } from '../types/assets';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 interface ProfilerPanelProps {
   isOpen: boolean;
@@ -107,13 +108,18 @@ export const ProfilerPanel: React.FC<ProfilerPanelProps> = ({
     ctx.stroke();
   }, [snapshot]);
 
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const frame = snapshot?.frame;
   const maxAvg = Math.max(0.01, ...(snapshot?.sections.map((s) => s.avg) ?? [0.01]));
 
   return (
-    <div className="fixed right-3 top-14 bottom-24 w-[340px] z-40 flex flex-col rounded-2xl bg-zinc-950/95 border border-zinc-800 backdrop-blur-xl shadow-2xl overflow-hidden">
+    <div
+      role="region"
+      aria-label="Profil de performance"
+      className="fixed right-3 top-14 bottom-24 w-[340px] z-40 flex flex-col rounded-2xl bg-zinc-950/95 border border-zinc-800 backdrop-blur-xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800/70">
         <div className="flex items-center gap-2">

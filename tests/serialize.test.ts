@@ -151,6 +151,57 @@ describe('serialize/validator — validateScene (pass 2)', () => {
     const res = validateScene(scene({ somethingUnknown: { a: 1 } }));
     expect(res.ok).toBe(true);
   });
+
+  // `riverConfig` était typé `any` dans le document : le validateur, qui
+  // travaille sur du JSON brut, ne le contrôlait pas du tout. Un lien de scène
+  // partagé pouvait donc injecter `width: "NaN"` et faire explode le shader.
+  describe('riverConfig', () => {
+    const river = (riverConfig: unknown) =>
+      scene({ nodes: [{ name: 'riv', type: 'mesh', riverConfig }] });
+
+    it('accepte une configuration valide', () => {
+      const res = validateScene(
+        river({
+          width: 6.5,
+          length: 75,
+          meanderFactor: 1.2,
+          meanderAmplitude: 8,
+          flowSpeed: 1.2,
+          waterColor: '#0284c7',
+          deepWaterColor: '#042f2e',
+          foamColor: '#e0f2fe',
+          foamIntensity: 0.75,
+          autoCarveTerrain: true,
+        })
+      );
+      expect(res.errors.filter((e) => e.path.includes('riverConfig'))).toEqual([]);
+    });
+
+    it('refuse une largeur non numérique', () => {
+      const res = validateScene(river({ width: 'large' }));
+      expect(res.ok).toBe(false);
+      expect(res.errors.some((e) => e.path === 'nodes[0].riverConfig.width')).toBe(true);
+    });
+
+    it('refuse une couleur non textuelle', () => {
+      const res = validateScene(river({ waterColor: 0x0284c7 }));
+      expect(res.ok).toBe(false);
+      expect(res.errors.some((e) => e.path === 'nodes[0].riverConfig.waterColor')).toBe(true);
+    });
+
+    it('refuse un autoCarveTerrain non booléen', () => {
+      const res = validateScene(river({ autoCarveTerrain: 'oui' }));
+      expect(res.ok).toBe(false);
+      expect(res.errors.some((e) => e.path === 'nodes[0].riverConfig.autoCarveTerrain')).toBe(true);
+    });
+
+    it('tolère les champs absents (scène enregistrée avant l\'option)', () => {
+      // Une scène plus ancienne n'a pas forcément toutes les clés : le
+      // validateur ne doit pas exiger la présence de chaque paramètre.
+      const res = validateScene(river({ width: 6.5 }));
+      expect(res.errors.filter((e) => e.path.includes('riverConfig'))).toEqual([]);
+    });
+  });
 });
 
 describe('serialize/validator — assertValidScene', () => {

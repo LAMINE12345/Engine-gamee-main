@@ -2,8 +2,11 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Le lint est-il activé au build exprès : `ignoreDuringBuilds: true` le
+  // neutralisait, ce qui laissait les violations s'accumuler sans jamais
+  // bloquer une livraison. Le lint est désormais à 0 erreur.
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
     ignoreBuildErrors: false,
@@ -20,10 +23,10 @@ const nextConfig: NextConfig = {
     ],
   },
   output: 'standalone',
-  transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
-    // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+    // HMR désactivé via la variable d'environnement DISABLE_HMR.
+    // Le file watching est coupé pour éviter les clignotements pendant les
+    // modifications.
     if (dev && process.env.DISABLE_HMR === 'true') {
       config.watchOptions = {
         ignored: /.*/,

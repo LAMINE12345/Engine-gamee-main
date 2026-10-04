@@ -179,6 +179,30 @@ export function validateScene(data: unknown): ValidationResult {
       if (n.physics !== undefined && typeof n.physics !== 'object') {
         c.error(`${p}.physics`, 'objet attendu.');
       }
+      // `riverConfig` est typé dans le document (`RiverConfigData`) mais le
+      // validateur travaille sur du `AnyObj` : sans ces contrôles, un lien de
+      // scène malveillant (ou une version antérieure du format) pouvait
+      // injecter `width: "NaN"` et faire planter le shader de rivière.
+      if (n.riverConfig !== undefined && n.riverConfig !== null) {
+        const r = n.riverConfig as AnyObj;
+        if (typeof r !== 'object') {
+          c.error(`${p}.riverConfig`, 'objet attendu.');
+        } else {
+          for (const k of ['width', 'length', 'meanderFactor', 'meanderAmplitude', 'flowSpeed', 'foamIntensity']) {
+            if (r[k] !== undefined && !isFiniteNum(r[k])) {
+              c.error(`${p}.riverConfig.${k}`, 'nombre fini attendu.');
+            }
+          }
+          for (const k of ['waterColor', 'deepWaterColor', 'foamColor']) {
+            if (r[k] !== undefined && typeof r[k] !== 'string') {
+              c.error(`${p}.riverConfig.${k}`, 'chaîne couleur attendue.');
+            }
+          }
+          if (r.autoCarveTerrain !== undefined && typeof r.autoCarveTerrain !== 'boolean') {
+            c.error(`${p}.riverConfig.autoCarveTerrain`, 'booléen attendu.');
+          }
+        }
+      }
     });
   }
 

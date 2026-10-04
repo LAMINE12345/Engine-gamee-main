@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Gamepad2, Rocket, FilePlus2, Sparkles, MousePointerClick } from 'lucide-react';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 export type WelcomeChoice = 'demo' | 'minigame' | 'blank';
 
@@ -56,10 +57,18 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onClose,
   onChoose,
 }) => {
+  // L'introduction initiale se choisit : Échap ne doit pas la COURT-circuiter
+  // quand l'utilisateur n'a pas encore fait son choix (canDismiss = false).
+  useEscapeToClose(open && canDismiss, onClose);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Bienvenue dans Aether 3D"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <div className="w-full max-w-3xl rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden">
         <div className="px-6 pt-6 pb-4 border-b border-zinc-800 flex items-start justify-between gap-4">
           <div>

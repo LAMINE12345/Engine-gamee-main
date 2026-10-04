@@ -7,6 +7,7 @@ import { ComponentHeader } from './ComponentHeader';
 import { StyledSlider, InlineColorRow, SwitchToggle } from './fields';
 import { fireComponentMenu } from './ComponentContextMenu';
 import { DEFAULT_RIVER_CONFIG } from '../../lib/water/RiverMesh';
+import type { RiverConfigData } from '../../types/engine';
 
 /**
  * RiverInspector — dimensions, courant, méandres, couleurs, sculpture.
@@ -20,23 +21,28 @@ export function RiverInspector({
 }: SectionProps) {
   const targets = nodes.filter((n) => n.subType === 'river' && n.riverConfig);
   if (targets.length === 0 || !onUpdateRiverConfig) return null;
-  const cfg = targets[0].riverConfig as Record<string, number | string | boolean>;
 
-  const updateAll = (patch: Record<string, number | string | boolean>) => {
-    targets.forEach((n) => onUpdateRiverConfig(n.id, patch));
+  const updateAll = (patch: Partial<RiverConfigData>) => {
+    targets.forEach((n) => onUpdateRiverConfig(n.id, patch as Record<string, unknown>));
   };
-  const mv = (key: string) => mixedValue(targets, (n) => (n.riverConfig as Record<string, number | string | boolean>)?.[key]);
+// `riverConfig` est typé : plus besoin de caste en `Record<string, …>`.
+// Les casts précédents affirmaient `{ value: number }` alors que le champ peut
+// être absent — une scène enregistrée avant l'ajout d'un paramètre n'a pas la
+// clé. On fournit donc le défaut du preset : le curseur affiche une valeur
+// valide au lieu de `NaN`.
+const mv = <K extends keyof RiverConfigData>(key: K): { value: RiverConfigData[K]; mixed: boolean } =>
+    mixedValue(targets, (n) => n.riverConfig?.[key] ?? DEFAULT_RIVER_CONFIG[key]);
 
-  const width = mv('width') as { value: number; mixed: boolean };
-  const length = mv('length') as { value: number; mixed: boolean };
-  const flowSpeed = mv('flowSpeed') as { value: number; mixed: boolean };
-  const meanderFactor = mv('meanderFactor') as { value: number; mixed: boolean };
-  const meanderAmplitude = mv('meanderAmplitude') as { value: number; mixed: boolean };
-  const waterColor = mv('waterColor') as { value: string; mixed: boolean };
-  const deepWaterColor = mv('deepWaterColor') as { value: string; mixed: boolean };
-  const foamColor = mv('foamColor') as { value: string; mixed: boolean };
-  const foamIntensity = mv('foamIntensity') as { value: number; mixed: boolean };
-  const autoCarve = mixedValue(targets, (n) => Boolean((n.riverConfig as Record<string, unknown>)?.autoCarveTerrain));
+  const width = mv('width');
+  const length = mv('length');
+  const flowSpeed = mv('flowSpeed');
+  const meanderFactor = mv('meanderFactor');
+  const meanderAmplitude = mv('meanderAmplitude');
+  const waterColor = mv('waterColor');
+  const deepWaterColor = mv('deepWaterColor');
+  const foamColor = mv('foamColor');
+  const foamIntensity = mv('foamIntensity');
+  const autoCarve = mv('autoCarveTerrain');
 
   return (
     <div
@@ -199,8 +205,8 @@ export function RiverInspector({
           <SwitchToggle
             label="Sculpter le lit du terrain"
             desc="Creuse automatiquement la hauteur du terrain sous la rivière"
-            active={autoCarve.value}
-            onToggle={() => updateAll({ autoCarveTerrain: !cfg.autoCarveTerrain })}
+            active={Boolean(autoCarve.value)}
+            onToggle={() => updateAll({ autoCarveTerrain: !autoCarve.value })}
           />
           {autoCarve.mixed && (
             <span className="text-[9px] text-amber-400">≠ valeurs différentes selon les objets</span>

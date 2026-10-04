@@ -34,6 +34,8 @@ import {
   Layers,
   Move,
 } from 'lucide-react';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
+import type { SceneNode, RiverConfigData } from '../types/engine';
 
 interface AtmosphereModalProps {
   isOpen: boolean;
@@ -45,8 +47,9 @@ interface AtmosphereModalProps {
   onUpdatePostProcessing: (data: Partial<PostProcessingData>) => void;
   onSelectWaterNode?: () => void;
   onAddRiver?: () => void;
-  nodes?: any[];
-  onUpdateRiverConfig?: (id: string, config: any) => void;
+  /** Scène courante : sert à trouver les rivières à éditer. */
+  nodes?: SceneNode[];
+  onUpdateRiverConfig?: (id: string, config: Partial<RiverConfigData>) => void;
 }
 
 export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
@@ -65,6 +68,8 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'weather' | 'water' | 'sky' | 'fog' | 'postprocess'
   >('water');
+
+  useEscapeToClose(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -92,7 +97,10 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
     // Docké à droite, SANS voile ni flou : le viewport reste visible et
     // cliquable pendant qu'on règle (pointer-events passe à travers le vide).
     // top-14 : sous la barre d'outils (z-index 9999) pour garder le X cliquable.
-    <div className="fixed top-14 bottom-0 right-0 z-50 flex p-3 pointer-events-none select-none">
+    <div
+      role="region"
+      aria-label="Atmosphère et rendu"
+      className="fixed top-14 bottom-0 right-0 z-50 flex p-3 pointer-events-none select-none">
       <div className="pointer-events-auto w-[min(620px,94vw)] h-full bg-zinc-950/95 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right duration-200">
         {/* Header */}
         <div className="h-16 px-6 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/60">

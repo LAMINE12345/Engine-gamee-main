@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { History, Plus, RotateCcw, Trash2, HardDriveDownload, X, AlertTriangle } from 'lucide-react';
 import type { BackupInfo } from '../lib/serialize';
 import { MAX_BACKUPS } from '../lib/serialize';
-import { useDismiss } from '../lib/ui/useDismiss';
+import { useDismiss, useEscapeToClose } from '../lib/ui/useDismiss';
 import { confirmBox, toast } from '../lib/ui/overlays';
 
 interface BackupsModalProps {
@@ -57,6 +57,7 @@ export const BackupsModal: React.FC<BackupsModalProps> = ({
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const panelRef = React.useRef<HTMLDivElement>(null);
   useDismiss(open, onClose, [panelRef]);
+  useEscapeToClose(open, onClose);
 
   const refresh = useCallback(() => {
     if (!open) return;

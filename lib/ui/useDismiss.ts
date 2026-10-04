@@ -52,6 +52,37 @@ export function useDismiss(
   }, [open]);
 }
 
+/**
+ * Ferme une modale sur la touche Échap.
+ *
+ * Volontairement distinct de `useDismiss` : celui-ci ferme aussi au clic
+ * extérieur et au blur de la fenêtre, ce qui convient à un menu flottant mais
+ * pas à une modale — perdre une modale de paramétrage parce que l'utilisateur
+ * a cliqué ailleurs dans la page est une perte de saisie.
+ *
+ * L'écouteur est en capture et s'arrête à la première modale rencontrée : deux
+ * modales empilées se ferment donc une par une, pas toutes d'un coup.
+ *
+ * (Échap ferme une modale : WCAG 2.1, 2.1.2 « Échap ».)
+ */
+export function useEscapeToClose(open: boolean, onClose: () => void): void {
+  // `onClose` est souvent une closure inline : on le lit via une ref pour ne
+  // pas ré-attacher l'écouteur à chaque rendu.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      closeRef.current();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [open]);
+}
+
 export interface ExclusiveMenu {
   openMenu: string | null;
   toggle: (id: string) => void;

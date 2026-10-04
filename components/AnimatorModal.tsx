@@ -10,6 +10,7 @@ import type {
   AnimEvent,
   AnimParam,
 } from '../types/animation';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 export interface AnimatorCandidate {
   uuid: string;
@@ -97,6 +98,8 @@ export const AnimatorModal: React.FC<AnimatorModalProps> = ({
     [candidates, selectedUuid]
   );
 
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   const patch = (fn: (d: AnimatorControllerData) => void): void => {
@@ -132,7 +135,10 @@ export const AnimatorModal: React.FC<AnimatorModalProps> = ({
 
   return (
     // Docké à droite, sans voile ni flou : le viewport reste visible et cliquable.
-    <div className="fixed top-14 bottom-0 right-0 z-[90] flex p-3 pointer-events-none select-none">
+    <div
+      role="region"
+      aria-label="Contrôleur d'animation"
+      className="fixed top-14 bottom-0 right-0 z-[90] flex p-3 pointer-events-none select-none">
       <div className="pointer-events-auto w-[min(680px,94vw)] h-full overflow-y-auto rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl animate-in fade-in slide-in-from-right duration-200">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 sticky top-0 bg-zinc-950 z-10">
           <div className="flex items-center gap-2 font-semibold text-zinc-100 text-sm">

@@ -1,17 +1,10 @@
 import * as THREE from 'three';
+import type { RiverConfigData } from '../../types/engine';
 
-export interface RiverConfig {
-  width: number;
-  length: number;
-  meanderFactor: number;
-  meanderAmplitude: number;
-  flowSpeed: number;
-  waterColor: string;
-  deepWaterColor: string;
-  foamColor: string;
-  foamIntensity: number;
-  autoCarveTerrain?: boolean;
-}
+// La forme des paramètres vit dans `types/engine.ts` : elle fait partie du
+// document de scène persisté. `SceneNode.riverConfig` n'est plus un `any`, donc
+// le validateur de scène peut enfin le vérifier.
+export type RiverConfig = RiverConfigData;
 
 export const DEFAULT_RIVER_CONFIG: RiverConfig = {
   width: 6.5,

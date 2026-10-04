@@ -3,6 +3,27 @@ import { AtmosphereData, PostProcessingData } from './atmosphere';
 import { TerrainConfig, FoliageLayer, FoliageSelectionInfo } from './terrain';
 import { HUDConfig } from './hud';
 
+/**
+ * Paramètres d'une rivière.
+ *
+ * Déclaré ici, et non dans `lib/water/RiverMesh.ts`, parce que la forme fait
+ * partie du document persisté : `SceneNode.riverConfig` était typé `any`,
+ * ce qui laissait ce champ hors de portée du validateur de scène. Ce type
+ * reste la source unique : RiverMesh l'importe.
+ */
+export interface RiverConfigData {
+  width: number;
+  length: number;
+  meanderFactor: number;
+  meanderAmplitude: number;
+  flowSpeed: number;
+  waterColor: string;
+  deepWaterColor: string;
+  foamColor: string;
+  foamIntensity: number;
+  autoCarveTerrain?: boolean;
+}
+
 export * from './logic';
 export * from './atmosphere';
 export * from './terrain';
@@ -366,7 +387,7 @@ export interface SceneNode {
   rigAnim?: RigAnimData;
   childrenCount?: number;
   modelInfo?: ModelInfo;
-  riverConfig?: any;
+  riverConfig?: RiverConfigData;
   spawnPoint?: SpawnPointConfig;
   animator?: import('./animation').AnimatorControllerData;
   /** 5.2 : identifiant stable inter-pairs (édition collaborative). */
@@ -529,7 +550,7 @@ export interface SceneExportData {
     rigAnim?: RigAnimData;
     modelInfo?: ModelInfo;
     particles?: ParticleEmitterData;
-    riverConfig?: any;
+    riverConfig?: RiverConfigData;
     spawnPoint?: SpawnPointConfig;
     animator?: import('./animation').AnimatorControllerData;
     collabId?: string;

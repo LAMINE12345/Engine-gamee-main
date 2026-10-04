@@ -1,4 +1,8 @@
-import { Entity } from '../lib/ecs/ECS';
+// `import type` et non `import` : `Entity` n'est utilisé qu'en position de
+// type (propriétés et signatures de `Script`). L'import runtime créait le seul
+// cycle du dépôt — types/engine → types/logic → lib/ecs/ECS → types/engine —
+// et faisait dépendre la couche « types » du code d'exécution.
+import type { Entity } from '../lib/ecs/ECS';
 import { PostProcessVolumeOverrides } from './atmosphere';
 
 // ==========================================

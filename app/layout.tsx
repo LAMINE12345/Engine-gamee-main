@@ -1,4 +1,5 @@
 import type {Metadata, Viewport} from 'next';
+import { StudioErrorBoundary } from '../components/StudioErrorBoundary';
 import './globals.css'; // Global styles
 
 const DESCRIPTION =
@@ -40,7 +41,12 @@ export const viewport: Viewport = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="fr">
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {/* Sans cette frontière, une exception quelconque dans l'éditeur
+            démontait tout l'arbre et ne laissait qu'un écran blanc — sans
+            aucun moyen de récupérer la scène, pourtant autosauvée. */}
+        <StudioErrorBoundary label="l'éditeur">{children}</StudioErrorBoundary>
+      </body>
     </html>
   );
 }

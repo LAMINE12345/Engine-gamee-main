@@ -30,6 +30,7 @@ import {
   Compass,
   Radar,
 } from 'lucide-react';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 interface HUDManagerModalProps {
   isOpen: boolean;
@@ -57,6 +58,8 @@ export const HUDManagerModal: React.FC<HUDManagerModalProps> = ({
     config.elements[0]?.id || null
   );
   const [isSavedNotice, setIsSavedNotice] = useState(false);
+
+  useEscapeToClose(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -294,7 +297,10 @@ export const HUDManagerModal: React.FC<HUDManagerModalProps> = ({
 
   return (
     // Docké à droite, sans voile ni flou : le viewport reste visible et cliquable.
-    <div className="fixed top-14 bottom-0 right-0 z-50 flex p-3 pointer-events-none select-none">
+    <div
+      role="region"
+      aria-label="Éditeur de HUD"
+      className="fixed top-14 bottom-0 right-0 z-50 flex p-3 pointer-events-none select-none">
       <div className="pointer-events-auto w-[min(880px,94vw)] h-full bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-right duration-200">
         {/* Header */}
         <div className="h-16 px-6 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/60">

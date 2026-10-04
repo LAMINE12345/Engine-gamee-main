@@ -11,6 +11,7 @@ import {
   ParticleEmitterData,
   RepeatData,
   RepeatInfo,
+  RiverConfigData,
 } from '../types/engine';
 import { RigStudioModal } from './RigStudioModal';
 import type { InputManager } from '../lib/physics/CharacterControllerSystem';
@@ -64,7 +65,7 @@ interface InspectorProps {
   onStopTestAnimation?: (id: string) => void;
   onTestRagdoll?: (id: string) => void;
   onToggleDebugWireframes?: (id: string, show: boolean) => void;
-  onUpdateRiverConfig?: (id: string, config: Partial<any>) => void;
+  onUpdateRiverConfig?: (id: string, config: Partial<RiverConfigData>) => void;
   onUpdateParticles?: (id: string, config: Partial<ParticleEmitterData>) => void;
   onUpdateLowPolyPalette?: (id: string, colors: string[] | null) => void;
   onToggleSmoothShading?: (id: string, smooth: boolean) => void;

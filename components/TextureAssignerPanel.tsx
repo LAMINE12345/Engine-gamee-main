@@ -11,6 +11,7 @@ import { X, Image as ImageIcon, Grid, Sliders, Check, Layers, Upload, HardDrive,
 import { alertBox } from '../lib/ui/overlays';
 import { isLocalTextureKey } from '../lib/persistence';
 import type { UvAnalysis } from '../lib/texture/uvAtlas';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 interface TextureAssignerPanelProps {
   isOpen: boolean;
@@ -223,6 +224,8 @@ export const TextureAssignerPanel: React.FC<TextureAssignerPanelProps> = ({
     };
   }, [uvAnalysis]);
 
+  useEscapeToClose(isOpen, onClose);
+
   // Retour tardif : tous les hooks ci-dessus doivent s'exécuter à CHAQUE render.
   // Placé plus haut, le nombre de hooks différait entre l'ouverture et la
   // fermeture du panneau → « Rendered more hooks than during the previous render ».
@@ -230,7 +233,10 @@ export const TextureAssignerPanel: React.FC<TextureAssignerPanelProps> = ({
 
   return (
     // Docké à droite, sans voile ni flou : le viewport reste visible et cliquable.
-    <div className="fixed top-14 bottom-0 right-0 z-50 flex p-3 pointer-events-none select-none">
+    <div
+      role="region"
+      aria-label="Affectation de textures"
+      className="fixed top-14 bottom-0 right-0 z-50 flex p-3 pointer-events-none select-none">
       <div className="pointer-events-auto w-[min(600px,94vw)] h-full bg-zinc-950 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right duration-200">
         {/* Header */}
         <div className="h-16 px-6 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/60">

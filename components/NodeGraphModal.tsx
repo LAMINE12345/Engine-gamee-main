@@ -32,6 +32,7 @@ import { SURFACES, SURFACE_ORDER, SurfaceId } from '../lib/logic/surfaceLogic';
 import { TRAIL_PRESETS } from '../lib/logic/cameraTrailing';
 import { SoundEngine } from '../lib/audio/SoundSynth';
 import { KEY_OPTIONS, describeKey } from '../lib/logic/inputLogic';
+import { useEscapeToClose } from '../lib/ui/useDismiss';
 
 const KEY_GROUPS = Array.from(new Set(KEY_OPTIONS.map((o) => o.group)));
 
@@ -563,11 +564,16 @@ export const NodeGraphModal: React.FC<NodeGraphModalProps> = ({
     });
   }, [selectedCategoryTab, searchQuery]);
 
+  useEscapeToClose(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div
       id="node-graph-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Graphe de logique — ${entityName}`}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div
