@@ -60,6 +60,16 @@ import {
 const MAX_FLOW_DEPTH = 128;
 
 /**
+ * Plafond du pas de simulation, après application de l'échelle de temps.
+ * Même valeur que le plafond de `dt` dans la boucle de rendu
+ * (`SceneManager.animate`) : c'est le pas que Rapier tient sans que les corps
+ * se traversent. Le but n'est donc pas de ralentir le jeu, mais d'empêcher
+ * qu'un bullet-time ×10 transforme une frame lente en pas de physique d'une
+ * seconde. À l'échelle 1 le delta réel est inchangé.
+ */
+const MAX_SIM_STEP = 0.05;
+
+/**
  * Marqueur des nœuds déjà exécutés pour un contexte de flux donné. Stocké
  * directement sur l'objet contexte (non énumérable, donc invisible lors d'un
  * spread `{...context}`) : le Set meurt avec le contexte au lieu d'accumuler
@@ -189,6 +199,13 @@ export class LogicExecutor {
   private verticalSpeeds: Map<string, number> = new Map();
   /** true tant que l'entité est au sol (mis à jour par checkLanding). */
   private groundedState: Map<string, boolean> = new Map();
+  /**
+   * Timers différés en cours (respawn, pulsations d'échelle/couleur). Ils
+   * modifient des objets Three.js ; laissés en vol ils survivent au Stop et
+   *Inclusiveallaient la session suivante — ou figeaient un maillage à 125 %
+   * si l'on arrêtait pendant la pulsation.
+   */
+  private deferredTimers: Set<ReturnType<typeof setTimeout>> = new Set();
   /** Setter de caméra fourni par le runtime, pour Shake/Rumble. */
   public onCameraShake?: (intensity: number, duration: number) => void;
   /**
@@ -548,9 +565,21 @@ export class LogicExecutor {
    * premier survit au changement de scène, le second est plus rapide.
    */
   private rememberSurface(entity: Entity, surface: SurfaceData): void {
+    const previousId = this.getSurfaceOf(entity)?.id;
     this.entitySurfaces.set(entity.id, surface);
     if (entity.object3D) {
       entity.object3D.userData.surface = surface.id;
+    }
+    // Un changement de matière réveille les capteurs OnSurfaceExit /
+    // OnSurfaceEnter. Ce dispatch est la SEULE chose qui déclenche ces deux
+    // nœuds : sans lui ils étaient déclarés, câblables, documentés dans
+    // l'éditeur… et parfaitement inertes. La première définition compte comme
+    // une entrée (« je viens d'entrer dans cette matière »), pas de sortie.
+    if (previousId === undefined || previousId !== surface.id) {
+      if (previousId !== undefined) {
+        this.dispatchSurfaceEvent(entity, 'OnSurfaceExit', previousId);
+      }
+      this.dispatchSurfaceEvent(entity, 'OnSurfaceEnter', surface.id);
     }
   }
 
@@ -560,6 +589,42 @@ export class LogicExecutor {
     if (cached) return cached;
     const id = entity.object3D?.userData?.surface;
     return id ? getSurface(id) : null;
+  }
+
+  /** Facteur d'échelle appliqué au temps réel pour obtenir du temps de jeu. */
+  public get simulationTimeScale(): number {
+    return ScriptSandbox.getTimeScale();
+  }
+
+  /**
+   * Convertit un delta temps réel en delta temps de jeu.
+   *
+   * Le plafond évite qu'un bullet-time ×10 sur une frame lente n'impose un pas
+   * de physique de 150 ms : au-delà, Rapier devient instable. À l'échelle 1 le
+   * pas est le delta réel, donc le comportement normal est inchangé.
+   */
+  public scaledDelta(realDt: number): number {
+    const scaled = realDt * ScriptSandbox.getTimeScale();
+    return Math.min(scaled, MAX_SIM_STEP);
+  }
+
+  /**
+   * `setTimeout` suivi : le timer est annulé au Stop et se désabonne lui-même.
+   * Sans ce suivi, un callback déjà planifié s'exécute après l'arrêt du jeu.
+   */
+  private defer(ms: number, fn: () => void): void {
+    const id = setTimeout(() => {
+      this.deferredTimers.delete(id);
+      if (!this.isRunning) return;
+      fn();
+    }, ms);
+    this.deferredTimers.add(id);
+  }
+
+  /** Annule tous les timers différés en cours. */
+  private clearDeferredTimers(): void {
+    for (const id of this.deferredTimers) clearTimeout(id);
+    this.deferredTimers.clear();
   }
 
   /**
@@ -761,7 +826,13 @@ export class LogicExecutor {
       // L'appeler par executeGraphNode tomberait dans le `default` et ne
       // déclencherait jamais sa branche. On dispatche donc directement sur
       // ses sorties, comme le fait executeGraphEvents pour OnCollision.
-      this.triggerNodeOutput(entity, graph, node.id, 'out_flow', ctx);
+      //
+      // `forceRootScope` sur chacune des trois : ce sont trois branches
+      // distinctes d'un même capteur. Sans cela, le nœud d'action atteint par
+      // `out_flow` resterait marqué et les deux sorties suivantes
+      // l'ignoreraient — un « son d'atterrissage + particules d'impact » ne
+      // déclencherait que le son.
+      this.triggerNodeOutput(entity, graph, node.id, 'out_flow', ctx, true);
       // Le seuil Doux/Violent est à 0,5, soit ~6 m/s (≈ 22 km/h) : c'est
       // l'ordre de grandeur où un atterrissage change de nature.
       this.triggerNodeOutput(
@@ -769,9 +840,10 @@ export class LogicExecutor {
         graph,
         node.id,
         force < 0.5 ? 'out_soft' : 'out_hard',
-        ctx
+        ctx,
+        true
       );
-      this.triggerNodeOutput(entity, graph, node.id, 'out_impact', ctx);
+      this.triggerNodeOutput(entity, graph, node.id, 'out_impact', ctx, true);
     }
   }
 
@@ -791,8 +863,11 @@ export class LogicExecutor {
       if (wanted !== '*' && wanted !== surfaceId) continue;
       const ctx = { surface: surfaceId };
       // Nœud d'ÉVÉNEMENT : dispatch direct sur ses sorties (voir dispatchLanding).
-      this.triggerNodeOutput(entity, graph, node.id, 'out_flow', ctx);
-      this.triggerNodeOutput(entity, graph, node.id, 'out_surface', ctx);
+      // `forceRootScope` : ce capteur est un événement NEUF, pas la suite du flux
+      // qui vient de changer la matière — il doit donc repartir d'un marqueur de
+      // passage vierge même quand le déclencheur est lui-même dans un flux.
+      this.triggerNodeOutput(entity, graph, node.id, 'out_flow', ctx, true);
+      this.triggerNodeOutput(entity, graph, node.id, 'out_surface', ctx, true);
     }
   }
 
@@ -865,6 +940,9 @@ export class LogicExecutor {
     this.triggerInsideStates.clear();
     this.entityTimerAccumulators.clear();
     this.namedTimers.clear();
+    // Timers différés (Delay, respawn, pulsations) : annulés ici, pas
+    // simplement ignorés, pour qu'ils ne se réveillent pas au Play suivant.
+    this.clearDeferredTimers();
     // Effets sensoriels : un HitStop ou un Rumble laissé actif survivrait au
     // Stop et gèlerait / secouerait la session suivante.
     this.hitStopRemaining = 0;
@@ -929,14 +1007,22 @@ export class LogicExecutor {
     if (!this.isRunning) return;
     // Pack Universel : PauseGame gèle toute la simulation (le rendu continue)
     if (this.paused) return;
-    this.elapsedTime += dt;
+    // `dt` est le temps RÉEL écoulé depuis la frame précédente. Tout ce qui
+    // est « jeu » (temps de jeu, timers, physique) doit avancer au rythme de
+    // l'échelle de temps posée par SetTimeScale — c'est ce que promet le nœud
+    // (« ralenti / bullet-time »). `realDt` reste utilisé pour les effets
+    // temporels : un HitStop doit pouvoir expirer même pendant le gel qu'il
+    // provoque, sinon il gèlerait la session à jamais.
+    const realDt = dt;
+    const simDt = this.scaledDelta(dt);
+    this.elapsedTime += simDt;
 
     // Effets temporels et capteurs : avant le graphe, pour que le HitStop et
     // le rumble de la frame précédente soient déjà résolus quand les nœuds
     // d'événement s'exécutent.
-    this.updateTemporalEffects(dt);
+    this.updateTemporalEffects(realDt);
     this.updateSurfaceSensors();
-    this.updateTrailCamera(dt);
+    this.updateTrailCamera(simDt);
 
     const entities = this.ecsWorld.getAllEntities().filter((e) => e.active);
 
@@ -946,7 +1032,7 @@ export class LogicExecutor {
     // Update Trigger Volumes & Checkpoints
     if (this.triggerVolumeManager) {
       this.triggerVolumeManager.update(
-        dt,
+        simDt,
         this.elapsedTime,
         entities,
         () => playerEntity,
@@ -957,7 +1043,7 @@ export class LogicExecutor {
     // Update NavMesh Agent Pathfinding Steering
     if (this.navMeshManager && this.isRunning) {
       this.navMeshManager.updateAgents(
-        dt,
+        simDt,
         (id) => {
           const ent = this.ecsWorld.getEntity(id);
           return ent?.object3D?.position || null;
@@ -969,8 +1055,8 @@ export class LogicExecutor {
     // Update floating damage texts
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const ft = this.floatingTexts[i];
-      ft.timer -= dt;
-      ft.y += dt * 1.5;
+      ft.timer -= simDt;
+      ft.y += simDt * 1.5;
       if (ft.timer <= 0) {
         this.floatingTexts.splice(i, 1);
       }
@@ -978,7 +1064,7 @@ export class LogicExecutor {
 
     // Auto-fermeture du dialogue actif après écoulement de sa durée
     if (this.dialogueState.active) {
-      this.dialogueState.timer -= dt;
+      this.dialogueState.timer -= simDt;
       if (this.dialogueState.timer <= 0) {
         this.dialogueState.active = false;
         this.dialogueState.timer = 0;
@@ -1004,7 +1090,7 @@ export class LogicExecutor {
               const cfg = card.config as CollectableConfig;
               // Spin mesh
               const rotSpeed = ((cfg.rotateSpeed ?? 90) * Math.PI) / 180;
-              obj.rotation.y += rotSpeed * dt;
+              obj.rotation.y += rotSpeed * simDt;
 
               // Floating bob
               const initial = this.initialTransforms.get(entity.id);
@@ -1032,7 +1118,7 @@ export class LogicExecutor {
                 this.patrolStates.set(entity.id, state);
               }
 
-              const moveStep = (cfg.speed ?? 3.0) * dt * state.direction;
+              const moveStep = (cfg.speed ?? 3.0) * simDt * state.direction;
               const axis = cfg.axis || 'x';
               const maxDist = cfg.distance ?? 6.0;
 
@@ -1169,14 +1255,14 @@ export class LogicExecutor {
                   // Floating motion for non-physics objects or kinematic entities
                   const mult = cfg.buoyancyMultiplier ?? 1.3;
                   const targetY = waterData.height + 0.1;
-                  obj.position.y += (targetY - obj.position.y) * Math.min(1.0, 5.0 * mult * dt);
+                  obj.position.y += (targetY - obj.position.y) * Math.min(1.0, 5.0 * mult * simDt);
 
                   if (cfg.alignToWaveNormal) {
                     const normal = waterData.normal;
                     const targetRotX = Math.atan2(-normal.z, normal.y) * 0.5;
                     const targetRotZ = Math.atan2(normal.x, normal.y) * 0.5;
-                    obj.rotation.x += (targetRotX - obj.rotation.x) * 4.0 * dt;
-                    obj.rotation.z += (targetRotZ - obj.rotation.z) * 4.0 * dt;
+                    obj.rotation.x += (targetRotX - obj.rotation.x) * 4.0 * simDt;
+                    obj.rotation.z += (targetRotZ - obj.rotation.z) * 4.0 * simDt;
                   }
                 }
               }
@@ -1224,7 +1310,9 @@ export class LogicExecutor {
       // LEVEL 2: NODE GRAPH ONUPDATE
       // ----------------------------------------------------
       if (logicData.nodeGraph?.enabled) {
-        this.executeGraphEvents(entity, 'OnUpdate', { dt });
+        // Le `dt` exposé aux graphes est le temps de JEU : sans cela un branchement
+        // « si dt > 0.03 » se déclencherait à tort pendant un bullet-time ralenti.
+        this.executeGraphEvents(entity, 'OnUpdate', { dt: simDt });
 
         // Process periodic OnTimer events
         if (logicData.nodeGraph.nodes) {
@@ -1259,7 +1347,10 @@ export class LogicExecutor {
     if (this.namedTimers.size > 0) {
       const expired: string[] = [];
       for (const [key, t] of this.namedTimers) {
-        t.remaining -= dt * ScriptSandbox.getTimeScale();
+        // `dt` est déjà un temps de JEU : l'échelle a été appliquée en amont.
+        // La multiplier une seconde fois ici rendait les timers deux fois trop
+        // rapides en bullet-time.
+        t.remaining -= dt;
         if (t.remaining <= 0) {
           try {
             t.fn?.();
@@ -1351,7 +1442,10 @@ export class LogicExecutor {
       if (node.type === 'OnProximity') {
         this.executeGraphNode(entity, graph, node, 'in_flow', eventData);
       } else {
-        this.triggerNodeOutput(entity, graph, node.id, 'out_flow', eventData);
+        // `eventData` est réutilisé pour chaque capteur correspondant : sans
+        // `forceRootScope`, le deuxième capteur verrait ses nœuds déjà
+        //Visités par le premier et ne déclencherait rien.
+        this.triggerNodeOutput(entity, graph, node.id, 'out_flow', eventData, true);
       }
     }
   }
@@ -1361,7 +1455,8 @@ export class LogicExecutor {
     graph: NodeGraphData,
     fromNodeId: string,
     outputSocketId: string,
-    dataContext: Record<string, any>
+    dataContext: Record<string, any>,
+    forceRootScope = false
   ): void {
     // Filtre anti-boucle : l'éditeur permet de relier la sortie d'un nœud à
     // son propre entrée (ou à un cycle A→B→A). Sans cette garde, la
@@ -1377,18 +1472,31 @@ export class LogicExecutor {
         (c) => c.fromNodeId === fromNodeId && c.fromSocketId === outputSocketId
       );
 
-      // Un nœud ne s'exécute qu'une fois par contexte : les nœuds de données
-      // (ReadMoveAxis, Math…) déclenchent plusieurs sorties avec le MÊME objet
-      // contexte. Sans ce filtre, brancher « Avant » ET « Latéral » sur le même
-      // nœud d'action le ferait tourner deux fois par frame, soit 2× la vitesse.
-      const visited = visitedInFlow(dataContext as object);
+      // Le marqueur de passage vit sur l'objet contexte : les appels imbriqués
+      // le partagent. C'est ce qui fait qu'un nœud de données déclenchant
+      // 4 sorties avec le MÊME contexte n'exécute son action qu'une fois —
+      // sinon brancher « Avant » ET « Latéral » sur le même nœud d'action
+      // doublerait la vitesse.
+      //
+      // Un événement à branches est le cas opposé : il réutilise son contexte
+      // pour chaque sortie (OnLand → out_flow + out_soft/out_hard +
+      // out_impact, executeGraphEvents qui boucle sur plusieurs capteurs) et il
+      // doit repartir d'un marqueur vierge à chaque branche, sinon la deuxième
+      // sortie ignorerait silencieusement les nœuds déjà atteints par la
+      // première. D'où `forceRootScope`, posé explicitement par les
+      // dispatcheurs d'événement et nulle part ailleurs : l'inférer du
+      // `flowDepth` confondait une racine avec la première sortie d'un nœud.
+      const context = forceRootScope ? { ...dataContext } : dataContext;
+
+      // Un nœud ne s'exécute qu'une fois par branche de flux.
+      const visited = visitedInFlow(context as object);
 
       for (const conn of outgoing) {
         const targetNode = graph.nodes.find((n) => n.id === conn.toNodeId);
         if (!targetNode) continue;
         if (visited.has(targetNode.id)) continue;
         visited.add(targetNode.id);
-        this.executeGraphNode(entity, graph, targetNode, conn.toSocketId, dataContext);
+        this.executeGraphNode(entity, graph, targetNode, conn.toSocketId, context);
       }
     } finally {
       this.flowDepth--;
@@ -1509,11 +1617,11 @@ export class LogicExecutor {
 
       case 'Delay': {
         const dur = Number(node.values.duration ?? 1.0);
-        setTimeout(() => {
-          if (this.isRunning) {
-            this.triggerNodeOutput(entity, graph, node.id, 'out_flow', context);
-          }
-        }, dur * 1000);
+        // Le délai est annulé au Stop : sinon il déclencherait sa branche dans
+        // la session de jeu suivante.
+        this.defer(dur * 1000, () => {
+          this.triggerNodeOutput(entity, graph, node.id, 'out_flow', context);
+        });
         break;
       }
 
@@ -3169,13 +3277,13 @@ export class LogicExecutor {
 
     // Handle respawn if configured
     if (cfg.respawnTime && cfg.respawnTime > 0) {
-      setTimeout(() => {
-        if (this.isRunning && entity.object3D) {
+      this.defer(cfg.respawnTime * 1000, () => {
+        if (entity.object3D) {
           entity.active = true;
           entity.object3D.visible = true;
           SoundEngine.play('warp');
         }
-      }, cfg.respawnTime * 1000);
+      });
     }
   }
 
@@ -3202,6 +3310,10 @@ export class LogicExecutor {
     if (!entity.object3D) return;
     const origScale = entity.object3D.scale.clone();
     entity.object3D.scale.multiplyScalar(1.25);
+    // Volontairement un setTimeout NON annulé au Stop, contrairement aux timers
+    // de gameplay : la restauration est un retour à l'état visuel initial. Si on
+    // l'annulait, un Stop pendant la pulsation laisserait le maillage figé à
+    // 125 % pour le reste de la session — le défaut qu'on souhaitait éviter.
     setTimeout(() => {
       if (entity.object3D) entity.object3D.scale.copy(origScale);
     }, 150);
@@ -3214,6 +3326,8 @@ export class LogicExecutor {
         const mat = child.material as THREE.MeshStandardMaterial;
         const origColor = mat.color?.getHex() ?? 0xffffff;
         mat.color?.setHex(hex);
+        // Même raison que pulseEntity : sans restitution, le maillage resterait
+        // rouge pour de bon.
         setTimeout(() => {
           mat.color?.setHex(origColor);
         }, 180);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { NodeType } from '../types/logic';
 import { getSocketsForNodeType, createGraphNode } from '../lib/logic/NodeGraphConverter';
@@ -267,6 +267,11 @@ function ggraph(nodes: ReturnType<typeof gnode>[], connections: ReturnType<typeo
 /** Marqueur : écrit TestFlag=1 quand le flux l'atteint. */
 function flagNode(flag = 'TestFlag') {
   return gnode('SetVariable', { variable: flag, operation: 'set', amount: 1 });
+}
+
+/** Même marqueur, nom explicite : pour les tests à plusieurs capteurs. */
+function flagNode2(flag: string) {
+  return flagNode(flag);
 }
 
 function setup() {
@@ -1308,5 +1313,354 @@ describe('SlowFollow — caméra a trainee', () => {
     cube.active = false;
     (exec as unknown as { updateTrailCamera: (d: number) => void }).updateTrailCamera(1 / 60);
     expect((exec as unknown as { trail: unknown }).trail).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Échelle de temps : le contrat promis par SetTimeScale (« ralenti / bullet-time
+// sur TOUTE la simulation ») et ses coroutines.
+// ---------------------------------------------------------------------------
+
+/**
+ * `ScriptSandbox.wait` passe par `window.setTimeout` et `LogicExecutor` par
+* `window.dispatchEvent` : l'environnement de test est 'node', sans `window`.
+ * On installe un shim complet UNE FOIS — un `window` partiel laissé en place
+ * ferait échouer tous les tests suivants sur `dispatchEvent is not a function`.
+ */
+function installFakeWindow() {
+  const g = globalThis as unknown as { window?: unknown; CustomEvent?: unknown };
+  if (g.window) return;
+  g.CustomEvent = class {
+    type: string;
+    detail: unknown;
+    constructor(type: string, init?: { detail?: unknown }) {
+      this.type = type;
+      this.detail = init?.detail;
+    }
+  };
+  g.window = {
+    setTimeout: (fn: () => void, ms?: number) => setTimeout(fn, ms),
+    clearTimeout: (id: unknown) => clearTimeout(id as never),
+    dispatchEvent: () => true,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+}
+
+function wait(seconds: number): Promise<void> {
+  return (ScriptSandbox as unknown as { wait: (s: number) => Promise<void> }).wait(seconds);
+}
+
+describe('échelle de temps', () => {
+  let ctx: ReturnType<typeof setup>;
+
+  beforeAll(() => {
+    installFakeWindow();
+  });
+
+  beforeEach(() => {
+    ctx = setup();
+  });
+
+  afterEach(() => {
+    ScriptSandbox.setTimeScale(1);
+  });
+
+  it('convertit un delta réel en delta de jeu', () => {
+    const { exec } = ctx;
+    // 60 fps : 0,016 s réelles, la référence de tous les calculs ci-dessous.
+    expect(exec.scaledDelta(0.016)).toBeCloseTo(0.016, 9);
+
+    // ×2 = deux fois plus vite.
+    ScriptSandbox.setTimeScale(2);
+    expect(exec.simulationTimeScale).toBe(2);
+    expect(exec.scaledDelta(0.016)).toBeCloseTo(0.032, 9);
+
+    // ×0,5 = ralenti : la simulation avance deux fois moins vite.
+    ScriptSandbox.setTimeScale(0.5);
+    expect(exec.scaledDelta(0.016)).toBeCloseTo(0.008, 9);
+  });
+
+  it('borne le pas de simulation pour ne pas déstabiliser Rapier', () => {
+    const { exec } = ctx;
+    // ×10 sur une frame déjà longue imposerait un pas d'un demi-seconde :
+    // on plafonne au même 0,05 s que la boucle de rendu.
+    ScriptSandbox.setTimeScale(10);
+    expect(exec.scaledDelta(0.05)).toBeCloseTo(0.05, 9);
+    expect(exec.scaledDelta(0.2)).toBeCloseTo(0.05, 9);
+  });
+
+  it('scale les cartes de comportement, pas seulement les scripts', () => {
+    const { exec, cube } = ctx;
+    // Carte Patrol de vitesse 10 : 0,2 unité par frame à ×1. C'est le véhicule
+    // que SetTimeScale doit ralentir — avant, seuls les scripts et les timers
+    // réagissaient, pas la physique ni les cartes.
+    (cube.object3D.userData as Record<string, unknown>).logic = {
+      cards: [
+        { type: 'Patrol', enabled: true, config: { speed: 10, axis: 'x', distance: 1000 } },
+      ],
+    };
+
+    cube.object3D.position.x = 0;
+    ScriptSandbox.setTimeScale(1);
+    exec.update(0.02);
+    expect(Math.abs(cube.object3D.position.x)).toBeCloseTo(0.2, 6);
+
+    cube.object3D.position.x = 0;
+    ScriptSandbox.setTimeScale(2);
+    exec.update(0.02);
+    expect(Math.abs(cube.object3D.position.x)).toBeCloseTo(0.4, 6);
+
+    cube.object3D.position.x = 0;
+    ScriptSandbox.setTimeScale(0.5);
+    exec.update(0.02);
+    expect(Math.abs(cube.object3D.position.x)).toBeCloseTo(0.1, 6);
+  });
+
+  it('attend plus longtemps en temps réel quand le jeu est au ralenti', async () => {
+    // wait() exprime les secondes en TEMPS DE JEU : à ×0,5, 0,4 s de script
+    // doivent durer 0,8 s réelles. L'ancien code multipliait le délai par
+    // l'échelle au lieu de le diviser — le ralenti ACCÉLÉRAIT les coroutines.
+    ScriptSandbox.setTimeScale(0.5);
+    const started = Date.now();
+    await wait(0.4);
+
+    expect(Date.now() - started).toBeGreaterThanOrEqual(400);
+  });
+
+  it('accélère les coroutines au-delà de ×1', async () => {
+    ScriptSandbox.setTimeScale(4);
+    const started = Date.now();
+    await wait(0.4);
+
+    // 0,4 s de jeu à ×4 ≈ 0,1 s réelles (plus la granularité d'échantillonnage).
+    expect(Date.now() - started).toBeLessThan(400);
+  });
+
+  it('ne fait pas expirer une attente pendant un gel', async () => {
+    ScriptSandbox.setTimeScale(0);
+    let done = false;
+    const pending = wait(0.05).then(() => {
+      done = true;
+    });
+
+    await new Promise((r) => setTimeout(r, 150));
+    expect(done).toBe(false);
+
+    // Le dégel doit laisser l'attente aboutir.
+    ScriptSandbox.setTimeScale(1);
+    await pending;
+    expect(done).toBe(true);
+  });
+
+  it('prend en compte un changement d\'échelle en cours d\'attente', async () => {
+    // L'ancien setTimeout figeait la durée au moment de l'appel : un bullet-time
+    // posé pendant l'attente n'avait aucun effet sur elle.
+    ScriptSandbox.setTimeScale(1);
+    const started = Date.now();
+    const pending = wait(1);
+
+    await new Promise((r) => setTimeout(r, 30));
+    ScriptSandbox.setTimeScale(10);
+    await pending;
+
+    expect(Date.now() - started).toBeLessThan(600);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Capteurs de matière : OnSurfaceEnter / OnSurfaceExit
+// ---------------------------------------------------------------------------
+
+describe('capteurs de matière', () => {
+  let ctx: ReturnType<typeof setup>;
+  beforeEach(() => {
+    ctx = setup();
+  });
+
+  /**
+   * Graphe « OnXxx → SetVariable(flag) » monté sur l'entité, avec un
+   * `mockPhysics` pour que le nœud SetMaterial accepte de poser la matière.
+   */
+  function mountSurfaceProbe(exec: LogicExecutor, entity: unknown, type: NodeType, flag: string) {
+    exec.physicsManager = mockPhysics();
+    const sensor = gnode(type, { surface: '*' });
+    const flagNode = flagNode2(flag);
+    const graph = ggraph([sensor, flagNode], [gconn(sensor, 'out_flow', flagNode, 'in_flow')]);
+    mountKeyboardGraph(entity, graph);
+    return { sensor, graph };
+  }
+
+  it('OnSurfaceEnter se déclenche à la première définition de matière', () => {
+    // Régression : `dispatchSurfaceEvent` n'était appelé NULLE PART. Les deux
+    // nœuds étaient déclarés, câblables,CLEFS dans l'éditeur — et ne pouvaient
+    // jamais se déclencher.
+    const { exec, cube } = ctx;
+    mountSurfaceProbe(exec, cube, 'OnSurfaceEnter', 'EnteredMud');
+
+    const setMat = gnode('SetMaterial', { target: 'self', material: 'mud' });
+    run(exec, cube, ggraph([setMat], []), setMat);
+
+    expect(V(exec).EnteredMud).toBe(1);
+  });
+
+  it('OnSurfaceExit se déclenche sur le changement de matière', () => {
+    const { exec, cube } = ctx;
+    mountSurfaceProbe(exec, cube, 'OnSurfaceExit', 'LeftMud');
+
+    const toMud = gnode('SetMaterial', { target: 'self', material: 'mud' });
+    run(exec, cube, ggraph([toMud], []), toMud);
+    expect(V(exec).LeftMud ?? 0).toBe(0);
+
+    const toIce = gnode('SetMaterial', { target: 'self', material: 'ice' });
+    run(exec, cube, ggraph([toIce], []), toIce);
+    expect(V(exec).LeftMud).toBe(1);
+  });
+
+  it('ne redéclenche rien si la matière ne change pas', () => {
+    const { exec, cube } = ctx;
+    mountSurfaceProbe(exec, cube, 'OnSurfaceEnter', 'EnterCount');
+
+    const toMud = gnode('SetMaterial', { target: 'self', material: 'mud' });
+    run(exec, cube, ggraph([toMud], []), toMud);
+    expect(V(exec).EnterCount).toBe(1);
+
+    const again = gnode('SetMaterial', { target: 'self', material: 'mud' });
+    run(exec, cube, ggraph([again], []), again);
+    expect(V(exec).EnterCount).toBe(1);
+  });
+
+  it('filtre le capteur sur la matière demandée', () => {
+    const { exec, cube } = ctx;
+    exec.physicsManager = mockPhysics();
+    const sensor = gnode('OnSurfaceEnter', { surface: 'ice' });
+    const flagNode = flagNode2('EnteredIce');
+    const graph = ggraph([sensor, flagNode], [gconn(sensor, 'out_flow', flagNode, 'in_flow')]);
+    mountKeyboardGraph(cube, graph);
+
+    const toMud = gnode('SetMaterial', { target: 'self', material: 'mud' });
+    run(exec, cube, ggraph([toMud], []), toMud);
+    expect(V(exec).EnteredIce ?? 0).toBe(0);
+
+    const toIce = gnode('SetMaterial', { target: 'self', material: 'ice' });
+    run(exec, cube, ggraph([toIce], []), toIce);
+    expect(V(exec).EnteredIce).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Branches d'un événement : chaque sortie doit avoir SON marqueur de passage.
+// ---------------------------------------------------------------------------
+
+describe('indépendance des branches d\'un événement', () => {
+  let ctx: ReturnType<typeof setup>;
+  beforeEach(() => {
+    ctx = setup();
+  });
+
+  it('chaque sortie d\'un capteur à branches déclenche sa propre action', () => {
+    // OnLand déclenche out_flow, puis out_soft/out_hard, puis out_impact avec le
+    // MÊME objet contexte. Le marqueur de passage vivait sur ce contexte : dès
+    // que deux sorties visaient le même nœud, la seconde était ignorée. Un
+    // « son d'atterrissage + particules d'impact » ne jouait donc que le son.
+    const { exec, cube } = ctx;
+    exec.physicsManager = mockPhysics();
+
+    const onLand = gnode('OnLand', { minSpeed: 0, surface: '*' });
+    const sound = gnode('SetVariable', { variable: 'Landed', operation: 'set', amount: 1 });
+    const impact = gnode('SetVariable', { variable: 'Impacted', operation: 'set', amount: 1 });
+    const graph = ggraph(
+      [onLand, sound, impact],
+      [
+        gconn(onLand, 'out_flow', sound, 'in_flow'),
+        gconn(onLand, 'out_impact', impact, 'in_flow'),
+      ]
+    );
+    mountKeyboardGraph(cube, graph);
+
+    // On force le dispatch du capteur : la détection d'atterrissage demande un
+    // corps avec une vitesse verticale.
+    (exec as unknown as { dispatchLanding: (e: unknown, impact: number) => void })
+      .dispatchLanding(cube, 8);
+
+    expect(V(exec).Landed).toBe(1);
+    expect(V(exec).Impacted).toBe(1);
+  });
+
+  it('deux capteurs du même type se déclenchent tous les deux', () => {
+    // executeGraphEvents boucle sur les capteurs correspondants en réutilisant
+    // le contexte : le second ignorait ses propres nœuds, marqués par le premier.
+    const { exec, cube } = ctx;
+    const a = gnode('OnTimer', { interval: 1 });
+    const b = gnode('OnTimer', { interval: 1 });
+    const flagA = flagNode2('FromA');
+    const flagB = flagNode2('FromB');
+    const graph = ggraph(
+      [a, b, flagA, flagB],
+      [
+        gconn(a, 'out_flow', flagA, 'in_flow'),
+        gconn(b, 'out_flow', flagB, 'in_flow'),
+      ]
+    );
+    mountKeyboardGraph(cube, graph);
+
+    (exec as unknown as { executeGraphEvents: (e: unknown, t: string, d: unknown) => void })
+      .executeGraphEvents(cube, 'OnTimer', {});
+
+    expect(V(exec).FromA).toBe(1);
+    expect(V(exec).FromB).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Timers différés : rien ne doit survivre au Stop.
+// ---------------------------------------------------------------------------
+
+describe('timers différés', () => {
+  let ctx: ReturnType<typeof setup>;
+  beforeEach(() => {
+    ctx = setup();
+  });
+
+  it('un nœud Delay ne déclenche pas sa branche après un Stop', async () => {
+    // Le setTimeout n'était pas annulé : sa branche partait au Stop puis se
+    // réveillait au Play suivant, dans une session où plus rien ne l'attendait.
+    const { exec, cube } = ctx;
+    const delay = gnode('Delay', { duration: 0.15 });
+    const flagNode = flagNode2('Delayed');
+    const graph = ggraph([delay, flagNode], [gconn(delay, 'out_flow', flagNode, 'in_flow')]);
+    mountKeyboardGraph(cube, graph);
+
+    run(exec, cube, graph, delay);
+    exec.stopSimulation();
+
+    await new Promise((r) => setTimeout(r, 250));
+    expect(V(exec).Delayed ?? 0).toBe(0);
+  });
+
+  it('un Delay se déclenche normalement si on ne l\'interrompt pas', async () => {
+    const { exec, cube } = ctx;
+    const delay = gnode('Delay', { duration: 0.05 });
+    const flagNode = flagNode2('Delayed');
+    const graph = ggraph([delay, flagNode], [gconn(delay, 'out_flow', flagNode, 'in_flow')]);
+    mountKeyboardGraph(cube, graph);
+
+    run(exec, cube, graph, delay);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(V(exec).Delayed).toBe(1);
+  });
+
+  it('la pulsation d\'échelle rend toujours la taille, même après un Stop', async () => {
+    // Caractérisation : la pulsation est purement cosmétique et sa restauration
+    // N'EST PAS annulée au Stop (contrairement aux timers de gameplay). Annuler
+    // la restitution laisserait le maillage figé à 125 % — c'est le défaut
+    // qu'on cherche ici à empêcher, pas à créer.
+    const { exec, cube } = ctx;
+    (exec as unknown as { pulseEntity: (e: unknown) => void }).pulseEntity(cube);
+    expect(cube.object3D.scale.x).toBeCloseTo(1.25, 6);
+
+    exec.stopSimulation();
+    await new Promise((r) => setTimeout(r, 250));
+    expect(cube.object3D.scale.x).toBeCloseTo(1, 6);
   });
 });

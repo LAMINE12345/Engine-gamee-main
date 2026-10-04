@@ -122,22 +122,35 @@ export class ScriptSandbox {
     this.coroutines.add(token);
     return new Promise<void>((resolve) => {
       const ms = Math.max(0, seconds * 1000);
+      const settle = () => {
+        this.coroutines.delete(token);
+        resolve();
+      };
+      // `seconds` est exprimé en TEMPS DE JEU : à timeScale 2 une seconde de
+      // script doit s'écouler en 0,5 s réelles (et non en 2 s). On intègre donc
+      // l'échelle au fil du temps au lieu de figer un délai unique — un
+      // setTimeScale posé EN COURS d'attente (HitStop, bullet-time) doit être
+      // pris en compte, sinon l'attente ne réagirait pas au gel.
+      let elapsedGameMs = 0;
+      let lastSample = Date.now();
       const tick = () => {
         if (token.cancelled) {
-          this.coroutines.delete(token);
-          resolve();
+          settle();
           return;
         }
-        const scaled = ms * this.timeScale;
-        window.setTimeout(() => {
-          if (token.cancelled) {
-            this.coroutines.delete(token);
-            resolve();
-            return;
-          }
-          this.coroutines.delete(token);
-          resolve();
-        }, scaled);
+        const now = Date.now();
+        elapsedGameMs += (now - lastSample) * this.timeScale;
+        lastSample = now;
+        if (elapsedGameMs >= ms) {
+          settle();
+          return;
+        }
+        // Cadence d'échantillonnage : on ne poll pas plus souvent que nécessaire
+        // (une attente de 5 s ne doit pas créer 300 timers) mais on reste assez
+        // fin pour qu'un gel/un dégel soit perçu en moins de 100 ms.
+        const remainingGameMs = ms - elapsedGameMs;
+        const poll = this.timeScale > 0 ? remainingGameMs / this.timeScale : 100;
+        window.setTimeout(tick, Math.max(16, Math.min(100, poll)));
       };
       tick();
     });

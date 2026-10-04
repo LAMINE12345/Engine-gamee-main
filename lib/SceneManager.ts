@@ -6914,8 +6914,14 @@ export class SceneManager {
 
       // Step Physics Simulation and ECS Systems
       if (!debuggerPaused) {
+        // Le pas de physique suit l'échelle de temps du graphe (SetTimeScale) :
+        // c'est elle qui donne son sens au ralenti « bullet-time ». À l'échelle
+        // 1 le pas est le delta brut, donc le comportement normal est inchangé.
+        // Un pas nul (HitStop / PauseGame) saute la résolution : faire tourner
+        // Rapier à dt 0 ne ferait que résoudre des contacts pour rien.
+        const simDt = this.logicExecutor.scaledDelta(dt);
         profiler.begin('physics');
-        this.ecsWorld.update(dt);
+        if (simDt > 0) this.ecsWorld.update(simDt);
         profiler.end('physics');
         profiler.begin('logic');
         this.logicExecutor.update(dt);
