@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SceneManager } from '../lib/SceneManager';
 import {
   GizmoMode,
@@ -55,6 +55,14 @@ interface ViewportProps {
   onCopySelection?: () => void;
   onCutSelection?: () => void;
   onPasteAt?: (pos: { x: number; y: number; z: number }) => void;
+  /**
+   * Reçoit le div conteneur. `page.tsx` s'en sert pour instancier le
+   * SceneManager : il cherchait autrement cet élément par
+   * `document.getElementById('aether-viewport')`, ce qui rendait le démarrage
+   * dépendant de l'ordre de montage et d'un id global — le même élément
+   * pouvant être trouvé avant d'être réellement attaché.
+   */
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export const Viewport: React.FC<ViewportProps> = ({
@@ -75,8 +83,18 @@ export const Viewport: React.FC<ViewportProps> = ({
   onCopySelection,
   onCutSelection,
   onPasteAt,
+  containerRef: externalContainerRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // Les deux refs pointent le même nœud : l'interne sert aux handlers de
+  // drop/mesure, celle reçue du parent sert à instancier le SceneManager.
+  const setContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      containerRef.current = node;
+      if (externalContainerRef) externalContainerRef.current = node;
+    },
+    [externalContainerRef]
+  );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showWorkPlaneMenu, setShowWorkPlaneMenu] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -327,7 +345,7 @@ export const Viewport: React.FC<ViewportProps> = ({
   return (
     <div
       id="aether-viewport"
-      ref={containerRef}
+      ref={setContainer}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

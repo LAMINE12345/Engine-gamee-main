@@ -53,6 +53,17 @@ export class RenderPipeline {
     const width = this.container.clientWidth || 800;
     const height = this.container.clientHeight || 600;
 
+    // Nettoyage AVANT de créer le renderer, pour ne jamais détenir deux
+    // contextes WebGL à la fois. Retirer un <canvas> du DOM ne libère pas son
+    // contexte : sans `WEBGL_lose_context`, chaque canvas orphelin gardait un
+    // contexte GPU jusqu'au GC — et les navigateurs plafonnent le nombre de
+    // contextes vivants. Même technique que `lib/lowPolyThumbnails.ts`.
+    this.container.querySelectorAll('canvas').forEach((stray) => {
+      const gl = stray.getContext('webgl2') ?? stray.getContext('webgl');
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+      stray.remove();
+    });
+
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -77,10 +88,6 @@ export class RenderPipeline {
     canvas.style.outline = 'none';
     canvas.style.touchAction = 'none';
     canvas.style.userSelect = 'none';
-
-    // Remove any previous canvas to avoid duplicates
-    const existingCanvases = this.container.querySelectorAll('canvas');
-    existingCanvases.forEach((c) => c.remove());
 
     this.container.appendChild(canvas);
 

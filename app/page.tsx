@@ -156,6 +156,8 @@ import {
 
 export default function AetherStudioPage() {
   const sceneManagerRef = useRef<SceneManager | null>(null);
+  /** Conteneur du viewport, renseigné par <Viewport> — héberge le renderer. */
+  const viewportContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Studio Reactive State
   const [nodes, setNodes] = useState<SceneNode[]>([]);
@@ -634,7 +636,13 @@ export default function AetherStudioPage() {
 
   // Initialize Three.js SceneManager once canvas container is mounted
   useEffect(() => {
-    const viewportContainer = document.getElementById('aether-viewport');
+    // La ref est renseignée par le `ref` callback de <Viewport>, qui pointe le
+    // même div que `#aether-viewport`. On ne cherche plus l'élément dans le
+    // document : `getElementById` pouvait trouver un nœud d'un montage
+    // précédent encore en cours de démontage (React monte deux fois en
+    // StrictMode, HMR empile), et faire construire le SceneManager sur le
+    // mauvais conteneur.
+    const viewportContainer = viewportContainerRef.current;
     if (!viewportContainer) return;
 
     const sm = new SceneManager(viewportContainer, {
@@ -892,29 +900,41 @@ export default function AetherStudioPage() {
     sceneManagerRef.current?.setSmoothShading(id, smooth);
   }, []);
 
+  // Synchronisation de l'inspecteur après une mutation.
+  //
+  // Deux formes coexistent, volontairement distinctes :
+  //
+  // - `refreshSelection` : ne touche qu'à la sélection. L'arborescence est
+  //   rafraîchie par l'événement `onHierarchyChange` du moteur. C'est la forme
+  //   utilisée par les réglages SloMo (atmosphère, particules) : elle est
+  //   appelée à chaque frappe de curseur, y republier tout l'arbre de scène
+  //   provoquerait un rendu complet du panneau Hierarchy par événement.
+  // - `resyncHierarchy` : republie l'arborescence ET la sélection. Pour les
+  //   mutations qui n'émettent pas d'événement fiable (ajout d'animation,
+  //   squelette, snap-to-ground).
+  const refreshSelection = useCallback((id: string) => {
+    if (selectedIdRef.current !== id) return;
+    const updated = sceneManagerRef.current?.getSceneHierarchy() || [];
+    const match = updated.find((n) => n.id === id);
+    if (match) setSelectedNode(match);
+  }, []);
+
+  const resyncHierarchy = useCallback((id: string) => {
+    const updated = sceneManagerRef.current?.getSceneHierarchy() || [];
+    setNodes(updated);
+    const match = updated.find((n) => n.id === id);
+    if (match) setSelectedNode(match);
+  }, []);
+
   const handleUpdateRiverConfig = useCallback((id: string, config: Partial<RiverConfigData>) => {
     sceneManagerRef.current?.updateRiverConfig(id, config);
-    // Refresh selectedNode to update Inspector UI immediately
-    if (selectedNode && selectedNode.id === id) {
-      const updatedNodes = sceneManagerRef.current?.getSceneHierarchy() || [];
-      const updatedSelected = updatedNodes.find((n) => n.id === id);
-      if (updatedSelected) {
-        setSelectedNode(updatedSelected);
-      }
-    }
-  }, [selectedNode]);
+    refreshSelection(id);
+  }, [refreshSelection]);
 
   const handleUpdateParticlesConfig = useCallback((id: string, config: Partial<ParticleEmitterData>) => {
     sceneManagerRef.current?.updateParticlesConfig(id, config);
-    // Refresh selectedNode to update Inspector UI immediately
-    if (selectedNode && selectedNode.id === id) {
-      const updatedNodes = sceneManagerRef.current?.getSceneHierarchy() || [];
-      const updatedSelected = updatedNodes.find((n) => n.id === id);
-      if (updatedSelected) {
-        setSelectedNode(updatedSelected);
-      }
-    }
-  }, [selectedNode]);
+    refreshSelection(id);
+  }, [refreshSelection]);
 
   const handleUpdateLight = useCallback((id: string, light: Partial<LightData>) => {
     sceneManagerRef.current?.updateLight(id, light);
@@ -930,11 +950,8 @@ export default function AetherStudioPage() {
 
   const handleUpdateRigAnim = useCallback((id: string, rig: Partial<RigAnimData>) => {
     sceneManagerRef.current?.setRigAnim(id, rig);
-    const updatedNodes = sceneManagerRef.current?.getSceneHierarchy() || [];
-    setNodes(updatedNodes);
-    const updatedSelected = updatedNodes.find((n) => n.id === id);
-    if (updatedSelected) setSelectedNode(updatedSelected);
-  }, []);
+    resyncHierarchy(id);
+  }, [resyncHierarchy]);
 
   // Répétition automatique : applyRepeat régénère les copies ET notifie
   // l'arborescence (onHierarchyChange re-synchronise nodes + sélection).
@@ -950,12 +967,9 @@ export default function AetherStudioPage() {
   const handleAppendAnimations = useCallback(async (id: string, file: File): Promise<string[]> => {
     if (!sceneManagerRef.current) return [];
     const added = await sceneManagerRef.current.appendAnimationsToModel(id, file);
-    const updatedNodes = sceneManagerRef.current.getSceneHierarchy() || [];
-    setNodes(updatedNodes);
-    const updatedSelected = updatedNodes.find((n) => n.id === id);
-    if (updatedSelected) setSelectedNode(updatedSelected);
+    resyncHierarchy(id);
     return added;
-  }, []);
+  }, [resyncHierarchy]);
 
   const handleTestAnimation = useCallback((id: string, clipName: string) => {
     sceneManagerRef.current?.playSkeletalAnimation(id, clipName);
@@ -1941,6 +1955,7 @@ export default function AetherStudioPage() {
           <div className="flex-1 relative overflow-hidden">
             <Viewport
               sceneManagerRef={sceneManagerRef}
+              containerRef={viewportContainerRef}
               selectedNode={selectedNode}
               gizmoMode={gizmoMode}
               gizmoSpace={gizmoSpace}
@@ -2061,12 +2076,7 @@ export default function AetherStudioPage() {
           onUpdateParticles={handleUpdateParticlesConfig}
           onSnapToGround={(id) => {
             sceneManagerRef.current?.snapObjectToGround(id);
-            const updatedNodes = sceneManagerRef.current?.getSceneHierarchy() || [];
-            setNodes(updatedNodes);
-            if (selectedNode && selectedNode.id === id) {
-              const updated = updatedNodes.find((n) => n.id === id);
-              if (updated) setSelectedNode(updated);
-            }
+            resyncHierarchy(id);
           }}
           onSaveAsPrefab={handleSaveAsPrefab}
           cameraFollowTargetId={cameraFollowTargetId}
