@@ -64,6 +64,7 @@ import { EntityLogicData } from '../types/logic';
 import { createVehicleGroup } from './scene/vehicleFactory';
 import { assignDefaultPhysics } from './scene/defaultPhysics';
 import { ensurePBRMaterial } from './scene/materialFactory';
+import { buildSimpleNode } from './scene/nodeBuilder';
 import { smoothShadeObject, flattenShadeObject } from './scene/smoothShading';
 import { AtmosphereManager } from './atmosphere/AtmosphereManager';
 import { TerrainGenerator } from './terrain/TerrainGenerator';
@@ -2106,76 +2107,9 @@ private bindEvents(): void {
           void this.restorer.restoreLowPoly(item);
           return;
         }
-        const mat = new THREE.MeshStandardMaterial({
-          color: item.material?.color || '#3b82f6',
-          roughness: item.material?.roughness ?? 0.35,
-          metalness: item.material?.metalness ?? 0.2,
-          wireframe: item.material?.wireframe ?? false,
-          opacity: item.material?.opacity ?? 1,
-          transparent: item.material?.transparent ?? false,
-          emissive: new THREE.Color(item.material?.emissive || '#000000'),
-          emissiveIntensity: item.material?.emissiveIntensity || 0,
-        });
-
-        if (item.material?.texturePreset && item.material.texturePreset !== 'none') {
-          const normalTex = TextureGenerator.getNormalMap(item.material.texturePreset);
-          if (normalTex) {
-            mat.normalMap = normalTex;
-            mat.normalScale.set(0.6, 0.6);
-          }
-        }
-
-        let geo: THREE.BufferGeometry;
-        switch (subType) {
-          case 'sphere':
-            geo = new THREE.SphereGeometry(0.9, 36, 36);
-            break;
-          case 'cylinder':
-            geo = new THREE.CylinderGeometry(0.75, 0.75, 1.8, 36);
-            break;
-          case 'plane':
-            geo = new THREE.PlaneGeometry(3, 3);
-            break;
-          case 'torus':
-            geo = new THREE.TorusGeometry(0.8, 0.25, 24, 48);
-            break;
-          case 'cone':
-            geo = new THREE.ConeGeometry(0.9, 1.8, 32);
-            break;
-          case 'postProcessVolume':
-            geo = new THREE.BoxGeometry(8, 5, 8);
-            break;
-          case 'cube':
-          default:
-            geo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-            break;
-        }
-
-        created = new THREE.Mesh(geo, mat);
-        if (subType === 'postProcessVolume') {
-          mat.color.set(item.material?.color || '#d946ef');
-          mat.wireframe = item.material?.wireframe ?? true;
-          mat.transparent = true;
-          mat.opacity = item.material?.opacity ?? 0.55;
-        }
-        created.userData = { subType, texturePreset: item.material?.texturePreset };
+        created = buildSimpleNode(item, subType);
       } else if (item.type === 'light') {
-        if (subType === 'point') {
-          const light = new THREE.PointLight(
-            item.light?.color || 0x38bdf8,
-            item.light?.intensity || 3.5,
-            item.light?.distance || 18
-          );
-          light.add(new THREE.PointLightHelper(light, 0.3));
-          created = light;
-          created.userData = { subType: 'point' };
-        } else {
-          created = new THREE.DirectionalLight(
-            item.light?.color || 0xffffff,
-            item.light?.intensity || 2.0
-          );
-          created.userData = { subType: 'directional' };
-        }
+        created = buildSimpleNode(item, subType);
       }
 
       if (created) {
@@ -6150,76 +6084,9 @@ private bindEvents(): void {
             void this.restorer.restoreLowPoly(item);
             return;
           }
-          const mat = new THREE.MeshStandardMaterial({
-            color: item.material?.color || '#3b82f6',
-            roughness: item.material?.roughness ?? 0.35,
-            metalness: item.material?.metalness ?? 0.2,
-            wireframe: item.material?.wireframe ?? false,
-            opacity: item.material?.opacity ?? 1,
-            transparent: item.material?.transparent ?? false,
-            emissive: new THREE.Color(item.material?.emissive || '#000000'),
-            emissiveIntensity: item.material?.emissiveIntensity || 0,
-          });
-
-          if (item.material?.texturePreset && item.material.texturePreset !== 'none') {
-            const normalTex = TextureGenerator.getNormalMap(item.material.texturePreset);
-            if (normalTex) {
-              mat.normalMap = normalTex;
-              mat.normalScale.set(0.6, 0.6);
-            }
-          }
-
-          let geo: THREE.BufferGeometry;
-          switch (subType) {
-            case 'sphere':
-              geo = new THREE.SphereGeometry(0.9, 36, 36);
-              break;
-            case 'cylinder':
-              geo = new THREE.CylinderGeometry(0.75, 0.75, 1.8, 36);
-              break;
-            case 'plane':
-              geo = new THREE.PlaneGeometry(3, 3);
-              break;
-            case 'torus':
-              geo = new THREE.TorusGeometry(0.8, 0.25, 24, 48);
-              break;
-            case 'cone':
-              geo = new THREE.ConeGeometry(0.9, 1.8, 32);
-              break;
-            case 'postProcessVolume':
-              geo = new THREE.BoxGeometry(8, 5, 8);
-              break;
-            case 'cube':
-            default:
-              geo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-              break;
-          }
-
-          created = new THREE.Mesh(geo, mat);
-          if (subType === 'postProcessVolume') {
-            mat.color.set(item.material?.color || '#d946ef');
-            mat.wireframe = item.material?.wireframe ?? true;
-            mat.transparent = true;
-            mat.opacity = item.material?.opacity ?? 0.55;
-          }
-          created.userData = { subType, texturePreset: item.material?.texturePreset };
+          created = buildSimpleNode(item, subType);
         } else if (item.type === 'light') {
-          if (subType === 'point') {
-            const light = new THREE.PointLight(
-              item.light?.color || 0x38bdf8,
-              item.light?.intensity || 3.5,
-              item.light?.distance || 18
-            );
-            light.add(new THREE.PointLightHelper(light, 0.3));
-            created = light;
-            created.userData = { subType: 'point' };
-          } else {
-            created = new THREE.DirectionalLight(
-              item.light?.color || 0xffffff,
-              item.light?.intensity || 2.0
-            );
-            created.userData = { subType: 'directional' };
-          }
+          created = buildSimpleNode(item, subType);
         }
 
         if (created) {
