@@ -9,18 +9,31 @@ import { useEffect } from 'react';
 export const PwaRegister: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Si `load` est déjà passé, enregistrer tout de suite : enchaîner sur
+    // l'événement ne ferait rien et le service worker ne serait jamais
+    // enregistré — c'est le cas au montage tardif (HMR, navigation client).
+    const register = (): void => {
+      navigator.serviceWorker?.register('/sw.js').catch(() => undefined);
+    };
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => undefined);
-      });
+      if (document.readyState === 'complete') register();
+      // Handler nommé : un `load` anonyme ne pouvait pas être retiré au
+      // démontage, et chaque remontage en empilait un nouveau.
+      else window.addEventListener('load', register);
     }
+
     const onPrompt = (e: Event): void => {
       e.preventDefault();
       (window as unknown as { __aetherInstallPrompt?: Event }).__aetherInstallPrompt = e;
       window.dispatchEvent(new CustomEvent('aether-pwa-installable'));
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+
+    return () => {
+      window.removeEventListener('load', register);
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+    };
   }, []);
   return null;
 };

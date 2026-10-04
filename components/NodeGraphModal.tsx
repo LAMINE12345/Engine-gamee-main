@@ -383,25 +383,6 @@ export const NodeGraphModal: React.FC<NodeGraphModalProps> = ({
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<'all' | 'event' | 'logic' | 'action'>('all');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Visual Debugger Real-Time Flow State
-  const [visualDebuggerActive, setVisualDebuggerActive] = useState(false);
-  const [activeDebugNodeIds, setActiveDebugNodeIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!visualDebuggerActive || !graph.nodes.length) {
-      setActiveDebugNodeIds(new Set());
-      return;
-    }
-    const interval = setInterval(() => {
-      const nodeIds = graph.nodes.map((n) => n.id);
-      if (nodeIds.length === 0) return;
-      // Randomly simulate executing active node in debug flow
-      const randomId = nodeIds[Math.floor(Math.random() * nodeIds.length)];
-      setActiveDebugNodeIds(new Set([randomId]));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [visualDebuggerActive, graph.nodes]);
-
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Handle canvas mouse move for dragging & panning
@@ -733,21 +714,6 @@ export const NodeGraphModal: React.FC<NodeGraphModalProps> = ({
                 </div>
               )}
             </div>
-
-            {/* Visual Debugger Toggle */}
-            <button
-              type="button"
-              onClick={() => setVisualDebuggerActive(!visualDebuggerActive)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-                visualDebuggerActive
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-[0_0_12px_rgba(52,211,153,0.3)] animate-pulse'
-                  : 'bg-zinc-800/80 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
-              }`}
-              title="Activer le débogueur visuel en temps réel"
-            >
-              <Zap className={`w-3.5 h-3.5 ${visualDebuggerActive ? 'text-emerald-400' : 'text-zinc-400'}`} />
-              <span>{visualDebuggerActive ? 'Debug Actif' : 'Visual Debugger'}</span>
-            </button>
 
             {/* Fullscreen toggle */}
             <button
@@ -1092,7 +1058,6 @@ export const NodeGraphModal: React.FC<NodeGraphModalProps> = ({
             {graph.nodes.map((node) => {
               const theme = getCategoryTheme(node.category);
               const isSelected = selectedNodeId === node.id;
-              const isDebugActive = visualDebuggerActive && activeDebugNodeIds.has(node.id);
 
               return (
                 <div
@@ -1114,9 +1079,7 @@ export const NodeGraphModal: React.FC<NodeGraphModalProps> = ({
                   className={`absolute rounded-2xl border backdrop-blur-xl transition-shadow select-none shadow-xl ${
                     theme.bg
                   } ${
-                    isDebugActive
-                      ? 'ring-4 ring-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.7)] z-40 animate-pulse border-emerald-300'
-                      : isSelected
+                    isSelected
                       ? 'ring-2 ring-violet-400 shadow-2xl z-30'
                       : 'hover:border-zinc-500/70 z-20'
                   }`}
@@ -1133,11 +1096,6 @@ export const NodeGraphModal: React.FC<NodeGraphModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {isDebugActive && (
-                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-bold font-mono animate-bounce">
-                          ⚡ LIVE
-                        </span>
-                      )}
                       <button
                         type="button"
                         onClick={(e) => {

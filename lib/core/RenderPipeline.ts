@@ -34,7 +34,7 @@ export class RenderPipeline {
   private readonly toonMaterialSystem: ToonMaterialSystem;
 
   private renderer: THREE.WebGLRenderer;
-  private composer: EffectComposer;
+  private composer: EffectComposer | null;
   private bloomPass: UnrealBloomPass;
   private fxaaPass: ShaderPass;
 
@@ -109,7 +109,9 @@ export class RenderPipeline {
 
   /** Dessine une frame via le composer (RenderPass + Bloom + FXAA). */
   public render(): void {
-    this.composer.render();
+    // `composer` est null après un dispose() : une frame peut encore arriver
+    // (RAF déjà armé) et on ne veut pas qu'une exception tue la boucle.
+    this.composer?.render();
   }
 
   public getRenderStats(): RenderStats {
@@ -213,6 +215,17 @@ export class RenderPipeline {
   }
 
   public dispose(): void {
+    // Le composer, ses passes et ses render targets n'étaient pas libérés :
+    // chacun occupe des cibles GPU jusqu'à son dispose. `EffectComposer.dispose()`
+    // s'occupe des cibles ; les passes, de leurs matériaux.
+    if (this.composer) {
+      for (const pass of this.composer.passes) {
+        pass.dispose?.();
+      }
+      this.composer.dispose();
+      this.composer = null;
+    }
+    this.normalMaterial?.dispose();
     this.renderer.dispose();
     if (this.container.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement);

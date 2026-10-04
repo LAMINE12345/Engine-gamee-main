@@ -1468,136 +1468,159 @@ export class SceneManager {
     }
   }
 
-  private bindEvents(): void {
+  /**
+ * Handlers du canvas nommés, et non closures inline dans `bindEvents`.
+ *
+ * Une closure anonyme est introuvable au `dispose()` : les trois écouteurs
+ * pointer restaient donc liés au canvas après le démontage du composant. Le
+ * canvas étant alors détaché du document, ils ne fuient pas la page, mais ils
+ * restent atteignables et se ré-accumulent à chaque remontage (React
+ * StrictMode en monte deux, le HMR en empile) — chacun gardant le SceneManager
+ * corresponding en vie.
+ */
+private onCanvasPointerDown = (e: PointerEvent): void => {
     const dom = this.renderPipeline.getCanvas();
+    if (this.selection.isDraggingTransform) return;
 
-    dom.addEventListener('pointerdown', (e: PointerEvent) => {
-      if (this.selection.isDraggingTransform) return;
-
-      // 4.4 : UI moteur d'abord (boutons cliquables, menus modaux bloquants).
-      if (this.isPlaying && this.guiManager.anyInteractive()) {
-        try {
-          if (this.guiManager.handleDown(e, dom.getBoundingClientRect())) return;
-        } catch {
-          /* ignore */
-        }
+    // 4.4 : UI moteur d'abord (boutons cliquables, menus modaux bloquants).
+    if (this.isPlaying && this.guiManager.anyInteractive()) {
+      try {
+        if (this.guiManager.handleDown(e, dom.getBoundingClientRect())) return;
+      } catch {
+        /* ignore */
       }
+    }
 
-      this.selection.recordPointerDown(e.clientX, e.clientY);
+    this.selection.recordPointerDown(e.clientX, e.clientY);
 
-      if (this.isPlaying) {
-        this.cameraManager.beginPlayRotate(e.clientX, e.clientY);
-        return;
+    if (this.isPlaying) {
+      this.cameraManager.beginPlayRotate(e.clientX, e.clientY);
+      return;
+    }
+
+    if (this.terrainBrush.mode !== 'none' && e.button === 0) {
+      this.isSculptingBrush = true;
+      this.cameraManager.setOrbitEnabled(false);
+      this.applyTerrainBrush(e);
+      return;
+    }
+
+    // 2D drag-selection box trigger checks
+    if (this.terrainBrush.mode === 'none' && !this.selection.isGizmoHovered() && e.button === 0) {
+      this.foliagePickConsumed = false;
+
+      // Mode Sélection : picking d'une instance foliage peinte avant la
+      // sélection scène. Un clic (sans Shift) sur un objet peint est avalé.
+      if (!e.shiftKey && this.tryPickFoliage(e)) return;
+
+      const hitObject = this.selection.raycastObjects(e);
+      if (e.shiftKey || !hitObject) {
+        this.selection.beginDragSelect(e.clientX, e.clientY);
       }
+    }
+  };
 
-      if (this.terrainBrush.mode !== 'none' && e.button === 0) {
-        this.isSculptingBrush = true;
-        this.cameraManager.setOrbitEnabled(false);
-        this.applyTerrainBrush(e);
-        return;
+private onCanvasPointerMove = (e: PointerEvent): void => {
+    if (this.selection.isDraggingTransform) return;
+
+    // 4.4 : survol des boutons UI (jamais consommé, la caméra continue).
+    if (this.isPlaying && this.guiManager.anyInteractive()) {
+      try {
+        this.guiManager.handleMove(e, this.renderPipeline.getCanvas().getBoundingClientRect());
+      } catch {
+        /* ignore */
       }
+    }
 
-      // 2D drag-selection box trigger checks
-      if (this.terrainBrush.mode === 'none' && !this.selection.isGizmoHovered() && e.button === 0) {
-        this.foliagePickConsumed = false;
+    if (this.selection.draggingBox) {
+      this.selection.updateDragSelect(e.clientX, e.clientY);
+      return;
+    }
 
-        // Mode Sélection : picking d'une instance foliage peinte avant la
-        // sélection scène. Un clic (sans Shift) sur un objet peint est avalé.
-        if (!e.shiftKey && this.tryPickFoliage(e)) return;
+    if (this.isPlaying && this.cameraManager.isPlayRotating) {
+      this.cameraManager.updatePlayRotate(e.clientX, e.clientY);
+      return;
+    }
 
-        const hitObject = this.selection.raycastObjects(e);
-        if (e.shiftKey || !hitObject) {
-          this.selection.beginDragSelect(e.clientX, e.clientY);
-        }
-      }
-    });
-
-    dom.addEventListener('pointermove', (e: PointerEvent) => {
-      if (this.selection.isDraggingTransform) return;
-
-      // 4.4 : survol des boutons UI (jamais consommé, la caméra continue).
-      if (this.isPlaying && this.guiManager.anyInteractive()) {
-        try {
-          this.guiManager.handleMove(e, dom.getBoundingClientRect());
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (this.selection.draggingBox) {
-        this.selection.updateDragSelect(e.clientX, e.clientY);
-        return;
-      }
-
-      if (this.isPlaying && this.cameraManager.isPlayRotating) {
-        this.cameraManager.updatePlayRotate(e.clientX, e.clientY);
-        return;
-      }
-
-      if (this.terrainBrush.mode !== 'none') {
-        this.updateBrushMarker(e);
-        if (this.isSculptingBrush) {
-          this.applyTerrainBrush(e);
-        }
-      } else if (this.brushMarkerMesh) {
-        this.brushMarkerMesh.visible = false;
-      }
-    });
-
-    dom.addEventListener('pointerup', (e: PointerEvent) => {
-      if (this.isPlaying) {
-        this.cameraManager.endPlayRotate();
-      }
-
-      // 4.4 : clic UI (boutons) avant la sélection scène.
-      if (this.isPlaying && this.guiManager.anyInteractive()) {
-        try {
-          if (this.guiManager.handleUp(e, dom.getBoundingClientRect())) return;
-        } catch {
-          /* ignore */
-        }
-      }
-
-      if (this.selection.draggingBox) {
-        this.selection.endDragSelect(e.shiftKey);
-        return;
-      }
-
+    if (this.terrainBrush.mode !== 'none') {
+      this.updateBrushMarker(e);
       if (this.isSculptingBrush) {
-        this.isSculptingBrush = false;
-        if (this.terrainBrush.mode === 'none') {
-          this.cameraManager.setOrbitEnabled(true);
-        }
-        // Save history state on completing terrain brush or foliage paint action
-        this.saveHistoryState();
-        return;
+        this.applyTerrainBrush(e);
       }
+    } else if (this.brushMarkerMesh) {
+      this.brushMarkerMesh.visible = false;
+    }
+  };
 
-      if (this.selection.isDraggingTransform) return;
+private onCanvasPointerUp = (e: PointerEvent): void => {
+    if (this.isPlaying) {
+      this.cameraManager.endPlayRotate();
+    }
 
-      const pointerDown = this.selection.getPointerDown();
-      const deltaX = Math.abs(e.clientX - pointerDown.x);
-      const deltaY = Math.abs(e.clientY - pointerDown.y);
-
-      if (deltaX < 5 && deltaY < 5) {
-        // Flash du rayon de clic quand le debug physique est visible.
-        this.physicsDebug.flashScreenRay(
-          e.clientX,
-          e.clientY,
-          this.renderPipeline.getCanvas(),
-          this.camera
-        );
-        if (this.foliagePickConsumed) {
-          // Clic foliage déjà consommé au pointerdown : ne rien raycaster.
-          this.foliagePickConsumed = false;
-        } else {
-          // Un clic scène (valide ou vide) remplace toute sélection foliage.
-          this.clearFoliageSelection();
-          this.selection.performRaycast(e);
+    // 4.4 : clic UI (boutons) avant la sélection scène.
+    if (this.isPlaying && this.guiManager.anyInteractive()) {
+      try {
+        if (this.guiManager.handleUp(e, this.renderPipeline.getCanvas().getBoundingClientRect())) {
+          return;
         }
+      } catch {
+        /* ignore */
       }
-    });
+    }
 
+    if (this.selection.draggingBox) {
+      this.selection.endDragSelect(e.shiftKey);
+      return;
+    }
+
+    if (this.isSculptingBrush) {
+      this.isSculptingBrush = false;
+      if (this.terrainBrush.mode === 'none') {
+        this.cameraManager.setOrbitEnabled(true);
+      }
+      // Save history state on completing terrain brush or foliage paint action
+      this.saveHistoryState();
+      return;
+    }
+
+    if (this.selection.isDraggingTransform) return;
+
+    const pointerDown = this.selection.getPointerDown();
+    const deltaX = Math.abs(e.clientX - pointerDown.x);
+    const deltaY = Math.abs(e.clientY - pointerDown.y);
+
+    if (deltaX < 5 && deltaY < 5) {
+      // Flash du rayon de clic quand le debug physique est visible.
+      this.physicsDebug.flashScreenRay(
+        e.clientX,
+        e.clientY,
+        this.renderPipeline.getCanvas(),
+        this.camera
+      );
+      if (this.foliagePickConsumed) {
+        // Clic foliage déjà consommé au pointerdown : ne rien raycaster.
+        this.foliagePickConsumed = false;
+      } else {
+        // Un clic scène (valide ou vide) remplace toute sélection foliage.
+        this.clearFoliageSelection();
+        this.selection.performRaycast(e);
+      }
+    }
+  };
+
+/** Retire les écouteurs posés par `bindEvents`. Appelé par `dispose()`. */
+private unbindEvents(): void {
+    const dom = this.renderPipeline.getCanvas();
+    dom.removeEventListener('pointerdown', this.onCanvasPointerDown);
+    dom.removeEventListener('pointermove', this.onCanvasPointerMove);
+    dom.removeEventListener('pointerup', this.onCanvasPointerUp);
+  }
+
+private bindEvents(): void {
+    const dom = this.renderPipeline.getCanvas();
+    dom.addEventListener('pointerdown', this.onCanvasPointerDown);
+    dom.addEventListener('pointermove', this.onCanvasPointerMove);
+    dom.addEventListener('pointerup', this.onCanvasPointerUp);
     window.addEventListener('keydown', this.handleKeyDown);
   }
 
@@ -8914,6 +8937,9 @@ export class SceneManager {
     }
 
     window.removeEventListener('keydown', this.handleKeyDown);
+    // Les trois écouteurs pointer du canvas n'étaient pas retirés : sans
+    // référence nommée ils étaient de toute façon inatteignables ici.
+    this.unbindEvents();
     this.physicsManager.dispose();
 
     if (this.atmosphereManager) {
@@ -8930,6 +8956,33 @@ export class SceneManager {
     }
     if (this.animationManager) {
       this.animationManager.dispose();
+    }
+    // Les rivières sont des maillages + shaders propres : sans cela, chaque
+    // recharge de scène en laissait un contexte GPU de plus sur la carte.
+    for (const river of this.riverMeshes) {
+      river.dispose();
+    }
+    this.riverMeshes = [];
+    this.waterManager?.dispose();
+
+    // Mixers d'animation : sans `uncacheRoot`, three.js conserve un Actions
+    // par clip pour chaque entité — le compteur d'actions montait sans borne
+    // au fil des sessions de jeu.
+    for (const mixer of this.mixers.values()) {
+      mixer.uncacheRoot(mixer.getRoot());
+    }
+    this.mixers.clear();
+    this.blendTreeActions.clear();
+    this.oneShotActions.clear();
+    this.smoothedEntitySpeeds.clear();
+    this.warnedMissingClips.clear();
+    this.activeProjectiles.length = 0;
+
+    if (this.brushMarkerMesh) {
+      this.brushMarkerMesh.geometry?.dispose();
+      const brushMaterial = this.brushMarkerMesh.material;
+      if (Array.isArray(brushMaterial)) brushMaterial.forEach((m) => m.dispose());
+      else brushMaterial?.dispose();
     }
 
     if (this.dracoLoader) {

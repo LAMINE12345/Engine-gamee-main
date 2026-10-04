@@ -173,12 +173,16 @@ export const Hierarchy: React.FC<HierarchyProps> = ({
     };
     window.addEventListener('click', close);
     window.addEventListener('blur', close);
-    document.getElementById('hierarchy-panel')?.addEventListener('scroll', close, true);
+    const panel = document.getElementById('hierarchy-panel');
+    panel?.addEventListener('scroll', close, true);
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('click', close);
       window.removeEventListener('blur', close);
       window.removeEventListener('keydown', onKey);
+      // Le listener `scroll` était posé en capture mais jamais retiré : chaque
+      // ouverture de menu en laissait un autre sur le panneau.
+      panel?.removeEventListener('scroll', close, true);
     };
   }, [menu]);
 

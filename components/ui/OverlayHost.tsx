@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Info,
   CheckCircle2,
@@ -58,10 +58,13 @@ export const OverlayHost: React.FC = () => {
     else setInput('');
   }, [active?.id, active?.kind, active?.defaultValue]);
 
-  const submit = (value: string | boolean | null): void => {
-    if (!active) return;
-    resolveDialog(active.id, value);
-  };
+  const submit = useCallback(
+    (value: string | boolean | null): void => {
+      if (!active) return;
+      resolveDialog(active.id, value);
+    },
+    [active]
+  );
 
   // Clavier : Entrée = valider, Échap = annuler (prompts & confirms).
   useEffect(() => {
@@ -87,7 +90,10 @@ export const OverlayHost: React.FC = () => {
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  });
+    // Dépendances explicites : sans elles, l'effet se réinscrivait à CHAQUE
+    // rendu (y compris à chaque frappe dans le prompt), en ajout/retrait
+    // inutiles. Ce sont tout ce que la closure lit.
+  }, [active, input, submit]);
 
   return (
     <>
