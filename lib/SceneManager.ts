@@ -8804,6 +8804,10 @@ private bindEvents(): void {
     // référence nommée ils étaient de toute façon inatteignables ici.
     this.unbindEvents();
     this.physicsManager.dispose();
+    // Singleton audio : son contexte et son minuteur BGM survivaient au
+    // démontage de l'éditeur. L’état est remis à zéro, un `init()` suivant
+    // reconstruit un contexte neuf.
+    soundManager.dispose();
 
     if (this.atmosphereManager) {
       this.atmosphereManager.dispose();

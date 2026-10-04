@@ -700,6 +700,57 @@ export class SoundManager {
   public getBGMMode(): BGMMode {
     return this.currentBgmMode;
   }
+
+  /**
+   * Libère le contexte audio et le générateur de musique.
+   *
+   * `soundManager` est un singleton de module, mais l'éditeur se démonte et se
+   * remonte (StrictMode, HMR, navigation). Sans cette méthode, l'intervalle BGM
+   * survivait au démontage : il continuait à créer un oscillateur et un gain
+   * toutes les 400–800 ms sur un contexte audio toujours ouvert. Le minuteur
+   * seul serait anodin sans la référence qu'il conserve au manager, mais il maintient le
+   * SoundManager et son AudioContext en vie pour toujours.
+   *
+   * L'état est remis à zéro plutôt que marqué « détruit » : un appel
+   * ultérieur à `init()` reconstruit un contexte neuf, ce qui rend la méthode
+   * sûre à appeler au milieu d'une session (montage suivant en StrictMode).
+   */
+  public dispose(): void {
+    if (this.bgmInterval) {
+      clearInterval(this.bgmInterval);
+      this.bgmInterval = null;
+    }
+    this.currentBgmMode = 'off';
+
+    // Les oscillateurs déjà émis ne sont pas tous gardés : ils s'arrêtent
+    // d'eux-mêmes (stop() planifié). Couper le gain master les étouffe, puis la
+    // fermeture du contexte les libère.
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+    }
+
+    if (this.ctx) {
+      const ctx = this.ctx;
+      this.ctx = null;
+      void ctx.close?.().catch(() => undefined);
+    }
+
+    this.masterGain = null;
+    this.sfxGain = null;
+    this.bgmGain = null;
+    this.musicGain = null;
+    this.ambientGain = null;
+    this.uiGain = null;
+    this.zoneFilter = null;
+    this.zoneReverb = null;
+    this.zoneWet = null;
+    this.zoneDry = null;
+    this.busGains.clear();
+    this.audioZones.clear();
+    this.listenerVel = { x: 0, y: 0, z: 0 };
+    this.lastListenerSample = 0;
+    this.isInitialized = false;
+  }
 }
 
 // Singleton export

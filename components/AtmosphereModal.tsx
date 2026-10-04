@@ -318,6 +318,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                               </div>
                               <input
                                 type="range"
+                                aria-label="Vitesse du Courant (Écoulement)"
                                 min="0.1"
                                 max="3.5"
                                 step="0.1"
@@ -336,6 +337,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                               </div>
                               <input
                                 type="range"
+                                aria-label="Largeur de Rivière"
                                 min="2"
                                 max="15"
                                 step="0.5"
@@ -357,6 +359,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                               </div>
                               <input
                                 type="range"
+                                aria-label="Fréquence des Virages"
                                 min="0.5"
                                 max="3.0"
                                 step="0.1"
@@ -375,6 +378,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                               </div>
                               <input
                                 type="range"
+                                aria-label="Amplitude (Profondeur des Virages)"
                                 min="0"
                                 max="20"
                                 step="0.5"
@@ -532,6 +536,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Niveau de l&apos;eau (Hauteur Y)"
                           min={-5.0}
                           max={5.0}
                           step={0.1}
@@ -556,6 +561,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Amplitude des Vagues"
                           min={0.0}
                           max={2.5}
                           step={0.05}
@@ -581,6 +587,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Vitesse de Propagation"
                           min={0.1}
                           max={3.5}
                           step={0.1}
@@ -606,6 +613,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Cambrure & Crêtes (Steepness Q)"
                           min={0.05}
                           max={0.95}
                           step={0.05}
@@ -708,6 +716,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Clarté / Transparence"
                           min={0.1}
                           max={1.0}
                           step={0.05}
@@ -731,6 +740,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Reflets Spéculaires Soleil"
                           min={0.2}
                           max={3.0}
                           step={0.1}
@@ -754,6 +764,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Opacité Globale"
                           min={0.3}
                           max={1.0}
                           step={0.05}
@@ -790,6 +801,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Poussée d&apos;Archimède"
                           min={0.4}
                           max={3.0}
                           step={0.1}
@@ -813,6 +825,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Résistance Visqueuse (Drag)"
                           min={0.4}
                           max={4.0}
                           step={0.1}
@@ -904,6 +917,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                          aria-label="Heure solaire"
                           min={0.0}
                           max={23.99}
                           step={0.05}
@@ -955,6 +969,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Étoiles Nocturnes"
                           min={0.0}
                           max={2.0}
                           step={0.1}
@@ -978,6 +993,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Lumière Lunaire"
                           min={0.2}
                           max={3.0}
                           step={0.1}
@@ -1067,6 +1083,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                       </div>
                       <input
                         type="range"
+                                aria-label="Vitesse du vent"
                         min={0}
                         max={120}
                         value={windConfig.speed}
@@ -1086,6 +1103,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                       </div>
                       <input
                         type="range"
+                                aria-label="Turbulence des rafales"
                         min={0}
                         max={1}
                         step={0.05}
@@ -1138,6 +1156,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                       </div>
                       <input
                         type="range"
+                                aria-label="Intensité de pluie"
                         min={0.1}
                         max={1.0}
                         step={0.05}
@@ -1161,6 +1180,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                       </div>
                       <input
                         type="range"
+                                aria-label="Taille des Gouttes"
                         min={0.2}
                         max={3.0}
                         step={0.1}
@@ -1215,6 +1235,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                     </div>
                     <input
                       type="range"
+                                aria-label="Densité du Brouillard"
                       min={0.001}
                       max={0.04}
                       step={0.001}
@@ -1291,6 +1312,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Intensité de l&apos;Occlusion"
                             min={0.2}
                             max={3.0}
                             step={0.1}
@@ -1314,6 +1336,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Rayon de Contact (Radius)"
                             min={0.1}
                             max={2.5}
                             step={0.05}
@@ -1361,6 +1384,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Force de l&apos;éclat"
                             min={0.1}
                             max={2.5}
                             step={0.05}
@@ -1384,6 +1408,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Seuil de diffusion"
                             min={0.1}
                             max={1.0}
                             step={0.05}
@@ -1466,6 +1491,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Force"
                             min={0}
                             max={1}
                             step={0.05}
@@ -1485,6 +1511,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Échantillons"
                             min={4}
                             max={16}
                             step={1}
@@ -1504,6 +1531,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Rayon max"
                             min={0}
                             max={0.1}
                             step={0.005}
@@ -1563,6 +1591,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                             </div>
                             <input
                               type="range"
+                                aria-label="Distance focale"
                               min={0.1}
                               max={200}
                               step={0.5}
@@ -1583,6 +1612,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Ouverture"
                             min={0}
                             max={1}
                             step={0.05}
@@ -1602,6 +1632,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Plage nette"
                             min={0}
                             max={100}
                             step={0.5}
@@ -1645,6 +1676,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Intensité"
                             min={0}
                             max={2}
                             step={0.05}
@@ -1664,6 +1696,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Étapes"
                             min={4}
                             max={32}
                             step={1}
@@ -1683,6 +1716,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Épaisseur"
                             min={0.01}
                             max={1}
                             step={0.01}
@@ -1739,6 +1773,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                               </div>
                               <input
                                 type="range"
+                                aria-label={label}
                                 min={min}
                                 max={max}
                                 step={step}
@@ -1773,6 +1808,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                               </div>
                               <input
                                 type="range"
+                                aria-label={label}
                                 min={-1}
                                 max={1}
                                 step={0.05}
@@ -1812,6 +1848,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                             </div>
                             <input
                               type="range"
+                                aria-label="Intensité LUT"
                               min={0}
                               max={1}
                               step={0.05}
@@ -1856,6 +1893,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Assombrissement"
                             min={0}
                             max={1.5}
                             step={0.05}
@@ -1875,6 +1913,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                           </div>
                           <input
                             type="range"
+                                aria-label="Décalage"
                             min={0}
                             max={2}
                             step={0.05}
@@ -1919,6 +1958,7 @@ export const AtmosphereModal: React.FC<AtmosphereModalProps> = ({
                         </div>
                         <input
                           type="range"
+                                aria-label="Intensité"
                           min={0}
                           max={0.02}
                           step={0.001}

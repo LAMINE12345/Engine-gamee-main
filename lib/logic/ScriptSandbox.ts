@@ -53,10 +53,29 @@ interface DebugBind {
 }
 
 /**
- * ScriptSandbox
- * Safely parses, instantiates and controls custom Level 3 user scripts.
- * Engine is an instance facade (no window.Engine split-brain).
- * Supports optional hooks, coroutines (async/await + Engine.wait), and debug instrumentation.
+ * ScriptSandbox — exécuteur des scripts de niveau 3.
+ *
+ * ⚠ Ce n'est PAS un bac à sable de sécurité, malgré le nom.
+ *
+ * Un script utilisateur est compilé par `new Function(...)`, avec `THREE` et
+ * la façade `Engine` injectés en paramètres. Le code s'exécute dans la portée
+ * globale de la page : `window`, `document`, `fetch` et `localStorage` y
+ * restent accessibles, et rien n'est masqué. Une exception dans un script ne
+ * peut pas casser le moteur (elle est capturée par `safeInvoke` et journalisée),
+ * mais un script peut faire tout ce que ferait un script inline dans
+ * l'éditeur — y compris lire les données du navigateur ou envoyer une
+ * requête réseau.
+ *
+ * C'est acceptable ici parce que les scripts sont écrits par la personne qui
+ * utilise l'éditeur, dans son propre navigateur : le modèle de menace n'est pas
+ * « un tiers exécute du code », il n'y a pas de tiers. Cela changerait si un
+ * jour une scène partagée par lien exécutait les scripts de son auteur — auquel
+ * cas il faudrait un iframe séparé (sandbox="allow-scripts") plutôt qu'un
+ * filtrage de noms, qui serait trivial à contourner.
+ *
+ * `Engine` est une façade d'instance unique (pas de `window.Engine` en
+ * double). Supporte crochets optionnels, coroutines (async/await +
+ * `Engine.wait`) et instrumentation de débogage.
  */
 export class ScriptSandbox {
   private static globalVariables: Map<string, any> = new Map();
